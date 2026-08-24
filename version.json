@@ -1,0 +1,21 @@
+{
+    "schema":  1,
+    "version":  "3.76.3",
+    "released":  "2026-08-25",
+    "notes":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/tag/v3.76.3",
+    "min_tool":  "3.76.4",
+    "packages":  {
+                     "guild":  {
+                                   "file":  "SpiritVale_繁中翻譯_公會專用版_v3.76.3.zip",
+                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.3/SpiritVale_繁中翻譯_公會專用版_v3.76.3.zip",
+                                   "size":  58596981,
+                                   "sha256":  "47A2FEF930880E131C62BC70CF502A52DD37EFE9E5ACD80C7DBDB61C20E2FEE8"
+                               },
+                     "pure":  {
+                                  "file":  "SpiritVale_繁中翻譯_一鍵安裝包_v3.76.3.zip",
+                                  "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.3/SpiritVale_繁中翻譯_一鍵安裝包_v3.76.3.zip",
+                                  "size":  51293262,
+                                  "sha256":  "403A8C44663D4DA551371D6E3025D68396992C2FA54D8453631E50DA153F9FDE"
+                              }
+                 }
+}

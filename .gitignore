@@ -1,0 +1,93 @@
+# ══════════════════════════════════════════════════════════════
+#  SpiritVale-ModsTool  .gitignore
+#  ★ 採用【白名單】寫法:預設【全部忽略】,只有下面明確放行的才會進 repo。
+#    理由:這個資料夾裡混著開發筆記、網友回報(含別人的 ID)、競品分析、
+#    翻譯字典、金鑰與 98MB 的執行環境 —— 一次 `git add -A` 手滑就外流了。
+#    寧可漏放(之後再放行),絕不誤傳。
+# ══════════════════════════════════════════════════════════════
+
+# ── 1. 全部忽略 ──
+*
+!*/
+
+# ── 2. 放行:專案說明與版本資訊 ──
+!.gitignore
+!README.md
+!巴哈更新公告_v*.md
+!發佈校驗_v*.txt
+
+# ── 3. 放行:外掛原始碼(不含編譯產物)──
+!SpiritZh_BepInEx_src/*.cs
+!SpiritZh_BepInEx_src/*.csproj
+!SpiritZh_BepInEx_src/*.md
+SpiritZh_BepInEx_src/bin/
+SpiritZh_BepInEx_src/obj/
+SpiritZh_BepInEx_src/.vs/
+SpiritZh_BepInEx_src/*.user
+
+# ── 4. 放行:安裝與設定工具(使用者實際會執行的腳本)──
+!ZIP包/*.ps1
+!ZIP包/*.bat
+!ZIP包/*.vbs
+!ZIP包/安裝說明*.txt
+ZIP包/*.bak
+ZIP包/*.備份*
+ZIP包/settings.ps1.v3.59.bak
+
+# ── 5. 放行:打包與發佈工具 ──
+!pack.ps1
+!tools/*.ps1
+!tools/*.md
+# 公鑰:要進 repo、要嵌進設定工具(公開的,沒關係)
+# ★ 注意:.gitignore 不支援「行尾註解」—— 註解一定要自己一行,
+#   否則整行(含註解文字)會被當成檔名樣式,規則就靜靜失效了。
+!tools/public_key.xml
+
+# ── 5b. 放行:更新資訊(設定工具讀 raw 連結,不吃 GitHub API 速率限制)──
+!version.json
+!version.json.sig
+
+# ── 6. 明確擋掉(即使將來有人改上面的規則,這幾條也要留著)──
+#   ★ 簽章私鑰:外流等於別人可以偽造你的更新檔 —— 絕對不能進 repo
+*.key
+*.pem
+*private*
+_keys/
+簽章金鑰/
+
+#   ★ 遊戲衍生檔:BepInEx interop 是從遊戲本體產生的,屬於遊戲公司的財產
+ZIP包/payload/
+**/interop/
+**/dotnet/
+*.dll
+*.exe
+
+#   ★ 翻譯成果:字典只隨安裝包發佈,不放進公開 repo
+**/SpiritZh_dict.txt
+**/SpiritZh_terms.txt
+**/SpiritZh_names.txt
+**/SpiritZh_monsters.txt
+**/SpiritZh_maps.txt
+
+#   ★ 大檔與二進位
+*.zip
+*.mp4
+*.mp3
+*.wav
+*.ttf
+*.png
+
+#   ★ 內部資料:開發筆記、網友回報(含他人 ID)、競品分析、診斷報告
+BepInEx6_IL2CPP_開發筆記.md
+網友*.md
+對手外掛分析*.md
+巴哈發文.md
+*診斷報告*.txt
+安裝紀錄.txt
+log備份/
+cmp/
+舊檔案備份_勿用/
+字典缺口_*/
+截斷譯文_*/
+文件/
+Official_Submission_zhTW/
