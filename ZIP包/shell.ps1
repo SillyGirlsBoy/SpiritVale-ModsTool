@@ -1966,6 +1966,27 @@ $xaml = @'
                 <TextBlock Style="{StaticResource Hint}" Text="非官方翻譯;純顯示層,不修改任何遊戲檔案。所有腳本皆為明文,可用記事本檢視。完全免費分享,禁止轉售;轉載請註明出處。"/>
               </StackPanel>
             </Border>
+            <Border x:Name="CardUpdate" Style="{StaticResource CardBox}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <TextBlock Style="{StaticResource Ico}" Text="&#xE895;"/>
+                  <TextBlock Text="檢查更新" Style="{StaticResource H1}"/>
+                  <TextBlock Text="(只連我的 GitHub 讀版本號,不會傳你的任何資料)" Style="{StaticResource Hint}"/>
+                </StackPanel>
+                <WrapPanel>
+                  <Button x:Name="BtnUpdCheck" Content="立即檢查" Width="110" Margin="0,0,10,0"/>
+                  <TextBlock Text="啟動時:" VerticalAlignment="Center" Margin="4,0,6,0"/>
+                  <ComboBox x:Name="CboUpdMode" Width="230" VerticalAlignment="Center">
+                    <ComboBoxItem Content="只通知我有新版(預設)"/>
+                    <ComboBoxItem Content="自動下載,下載完再問我要不要裝"/>
+                    <ComboBoxItem Content="不要檢查更新"/>
+                  </ComboBox>
+                </WrapPanel>
+                <TextBlock x:Name="LblUpdState" Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0" Text="尚未檢查。"/>
+                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,6,0,0"
+                           Text="‧下載回來的安裝包會【驗證數位簽章與 SHA256】才會給你安裝 —— 即使我的 GitHub 帳號被盜,對方沒有我的私鑰也偽造不出能通過驗證的更新檔。&#10;‧不會自動覆蓋你的遊戲:下載完只會提示你「關掉遊戲後按安裝」,設定檔一律保留。"/>
+              </StackPanel>
+            </Border>
             <Border x:Name="CardCompat" Style="{StaticResource CardBox}">
               <StackPanel>
                 <TextBlock Text="已知的外掛相容性" Style="{StaticResource H1}" Margin="0,0,0,8"/>
@@ -2033,6 +2054,7 @@ foreach ($n in @("LblStatus","LblVer","TxtPath","BtnBrowse","BtnTutorial","TabBo
                  "BtnInstall","BtnDiag","BtnUninstall",
                  "TxtScale","CboUp","TxtSharp","TxtFps","CboVs","CboMsaa","ChkSplash","TxtVol",
                  "RbM1","RbM2","RbM3","RbM4","CboFont","BtnFontFile","LblFontNow","LblAbout",
+                 "CardUpdate","BtnUpdCheck","CboUpdMode","LblUpdState",
                  "KDpsKey","KDpsMode","KDpsReset","KDpsEdit","KToolKey","KMkKey","ChkMkAuto",
                  "ChkQOn","TQ神品","TQ珍品","TQ精品","TQ良品","BQC神品","BQC珍品","BQC精品","BQC良品","BQC凡品",
                  "CboQStyle","TQBlend","CboQName","ChkQTip","ChkQPrice","ChkQHist","TQHistDays","ChkMktPanel","ChkMktMark","TQTtl",
@@ -3418,6 +3440,8 @@ function Load-Config {
         Set-UiScaleCombo $uk
         if (-not $script:uiScaleApplied) { $script:uiScaleApplied = $true; Apply-UiScale $uk }
         $script:tutorialDone = ($g["tutorial"] -eq "1")
+        $script:updMode = $(if ($g["update"]) { $g["update"] } else { "notify" })
+        $CboUpdMode.SelectedIndex = $(switch ($script:updMode) { "auto" { 1 } "off" { 2 } default { 0 } })
     }
     $m = ""
     try { $m = (Get-Content -LiteralPath (Join-Path $pd "SpiritZh_mode.txt") -Raw -ErrorAction Stop).Trim() } catch {}
@@ -6650,4 +6674,239 @@ $window.Add_ContentRendered({
 # ★ Stop-Splash 裡的 Start-Sleep 迴圈跑在 ShowDialog【之前】,那時還沒有訊息迴圈,
 #   跟本專案「Start-Process -Wait 讓已經在跑的 UI 沒有回應」那個坑不是同一件事。
 Stop-Splash
+
+# ══════════════════════════════════════════════════════════════════════
+#  檢查更新(v3.76.4)—— 設計理由見 tools\更新機制說明.md
+#   ★ 一定驗簽:只驗 SHA256 擋不住「GitHub 帳號被盜、ZIP 與雜湊一起改」;
+#     簽章的私鑰只在作者電腦上,偽造不了。驗不過一律當作沒有更新(不提示、不重試)。
+#   ★ 不做全自動安裝:遊戲開著時檔案是鎖住的,而且靜默覆蓋別人的東西是壞習慣。
+#   ★ 網路動作全在背景 runspace,UI 不卡;主執行緒只用 DispatcherTimer 收結果。
+# ══════════════════════════════════════════════════════════════════════
+$script:UPD_OWNER = "SillyGirlsBoy"
+$script:UPD_REPO  = "SpiritVale-ModsTool"
+$script:UPD_BRANCH = "main"
+$script:UPD_PUB = @'
+<RSAKeyValue><Modulus>uFdotcA1O0lHncEP9akiJMUTwWsDIpBvi+FzPfrgo6QonhaVYI+p90EA9dy4bSIiA0fBp8YLtfWrNaPg6wT6DIcrmv8MlH2tgayXX4/mdGib9QnF7FMfGvwP5dJPULIJl6bCOgEllag6oSAracHmCCkYx+d3eBvsUqbHvs1tnsNx+53oYR8Ylnw22jRlFx3FJdaY6q3z3KbWu9xdrowKjnPvCTZIXfRgfx/S35Y18F/JvXSlhvq1FH/2YN1+7LwKSVU4Lg+2RXUyMPCSXLMJjmH73xqJaWXQYaU51F7AWZzLSkJ7FbtQADPCtJrOQbrsvrb3+nPRgr44i6lWKOxZON7auJJNr6GuezuHls6vpsFwUQXVrtKWSGh4KRVGaE8tdj8HJ+ZfvfoU1W3viSXItdkuEWAB5WvoQDJBk9VszzOh+bhz2IBxgYLoRqYftcOHWn5xMfS4HAX+chDRoS+dYiuZQsyqZyNoJxe/iey5uNy0fD+x0vvbsXoplUd6QPjV</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>
+'@
+$script:updMode  = "notify"      # notify | auto | off
+$script:updBusy  = $false
+$script:updShared = $null
+$script:updRs = $null; $script:updPs = $null; $script:updHandle = $null
+$script:updTimer = $null
+$script:updInfo = $null          # 驗過簽的 version.json 物件
+$script:updZip = ""              # 下載好且驗過雜湊的 ZIP 路徑
+
+function Upd-Say([string]$s) { try { $LblUpdState.Text = $s } catch {} }
+
+# 版本字串比大小:1.2.10 > 1.2.9(純字串比會判錯)
+function Upd-VerGt([string]$a, [string]$b) {
+    $pa = @(($a -replace "[^0-9.]", "").Split(".") | ForEach-Object { [int]("0" + $_) })
+    $pb = @(($b -replace "[^0-9.]", "").Split(".") | ForEach-Object { [int]("0" + $_) })
+    for ($i = 0; $i -lt [Math]::Max($pa.Count, $pb.Count); $i++) {
+        $x = $(if ($i -lt $pa.Count) { $pa[$i] } else { 0 })
+        $y = $(if ($i -lt $pb.Count) { $pb[$i] } else { 0 })
+        if ($x -ne $y) { return ($x -gt $y) }
+    }
+    return $false
+}
+
+# 驗簽:對【位元組】驗,所以 version.json 產出時固定 UTF-8 無 BOM + LF,誰都不准順手改編碼
+function Upd-VerifySig([byte[]]$data, [string]$sigB64) {
+    try {
+        $rsa = [System.Security.Cryptography.RSA]::Create()
+        try {
+            $rsa.FromXmlString($script:UPD_PUB.Trim())
+            return $rsa.VerifyData($data, [Convert]::FromBase64String($sigB64.Trim()),
+                [System.Security.Cryptography.HashAlgorithmName]::SHA256,
+                [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
+        } finally { $rsa.Dispose() }
+    } catch { return $false }
+}
+
+# 背景工作:$mode = "check"(抓 version.json)或 "download"(抓 ZIP)
+function Upd-StartJob([string]$mode, [hashtable]$arg) {
+    if ($script:updBusy) { return $false }
+    $script:updBusy = $true
+    $script:updShared = [hashtable]::Synchronized(@{ done = $false; ok = $false; err = ""; pct = 0; mode = $mode })
+    foreach ($k in $arg.Keys) { $script:updShared[$k] = $arg[$k] }
+    $sb = {
+        param($sh)
+        try {
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+            if ($sh.mode -eq "check") {
+                $wc = New-Object System.Net.WebClient
+                $wc.Encoding = [System.Text.Encoding]::UTF8
+                $wc.Headers.Add("User-Agent", "SpiritZh-Updater")
+                $sh.json = $wc.DownloadData($sh.urlJson)      # 位元組:驗簽要用原始位元組
+                $sh.sig  = $wc.DownloadString($sh.urlSig)
+                $wc.Dispose()
+                $sh.ok = $true
+            }
+            else {
+                $req = [System.Net.HttpWebRequest]::Create($sh.url)
+                $req.UserAgent = "SpiritZh-Updater"; $req.Timeout = 30000
+                $res = $req.GetResponse(); $total = $res.ContentLength
+                $ins = $res.GetResponseStream()
+                $outs = [System.IO.File]::Create($sh.dest)
+                try {
+                    $buf = New-Object byte[] 262144; $got = 0
+                    while (($r = $ins.Read($buf, 0, $buf.Length)) -gt 0) {
+                        $outs.Write($buf, 0, $r); $got += $r
+                        if ($total -gt 0) { $sh.pct = [int](100 * $got / $total) }
+                        if ($sh.cancel) { break }
+                    }
+                } finally { $outs.Close(); $ins.Close(); $res.Close() }
+                if ($sh.cancel) { $sh.err = "已取消" }
+                else {
+                    $h = (Get-FileHash -LiteralPath $sh.dest -Algorithm SHA256).Hash.ToUpperInvariant()
+                    if ($h -ne $sh.sha) { $sh.err = "下載回來的檔案雜湊對不上(可能下載中斷,或檔案在傳輸途中被改過)" }
+                    else { $sh.ok = $true }
+                }
+            }
+        }
+        catch { $sh.err = $_.Exception.Message }
+        finally { $sh.done = $true }
+    }
+    $script:updRs = [runspacefactory]::CreateRunspace(); $script:updRs.ApartmentState = "MTA"; $script:updRs.Open()
+    $script:updPs = [powershell]::Create(); $script:updPs.Runspace = $script:updRs
+    [void]$script:updPs.AddScript($sb).AddArgument($script:updShared)
+    $script:updHandle = $script:updPs.BeginInvoke()
+    if (-not $script:updTimer) {
+        $script:updTimer = New-Object System.Windows.Threading.DispatcherTimer
+        $script:updTimer.Interval = [TimeSpan]::FromMilliseconds(400)
+        $script:updTimer.Add_Tick({ Upd-Poll })
+    }
+    $script:updTimer.Start()
+    return $true
+}
+
+function Upd-Cleanup {
+    try { if ($script:updTimer) { $script:updTimer.Stop() } } catch {}
+    try { if ($script:updPs) { $script:updPs.Dispose() } } catch {}
+    try { if ($script:updRs) { $script:updRs.Close(); $script:updRs.Dispose() } } catch {}
+    $script:updPs = $null; $script:updRs = $null; $script:updHandle = $null; $script:updBusy = $false
+}
+
+function Upd-Poll {
+    $sh = $script:updShared
+    if (-not $sh) { try { $script:updTimer.Stop() } catch {}; return }
+    if ($sh.mode -eq "download" -and -not $sh.done) { Upd-Say ("下載中… " + $sh.pct + "%"); return }
+    if (-not $sh.done) { return }
+    $mode = $sh.mode; $ok = $sh.ok; $err = $sh.err
+    Upd-Cleanup
+    if ($mode -eq "check") { Upd-OnChecked $ok $err $sh } else { Upd-OnDownloaded $ok $err $sh }
+}
+
+function Upd-OnChecked([bool]$ok, [string]$err, $sh) {
+    if (-not $ok) {
+        Upd-Say ("查不到更新資訊(" + $err + ")—— 不影響使用,稍後再試或到 GitHub 手動看。")
+        if ($script:updManual) { Show-Msg "檢查更新失敗" ("連不上更新伺服器:`n" + $err + "`n`n可以稍後再試,或直接到 GitHub 的 Releases 頁看。") "warn" }
+        $script:updManual = $false
+        return
+    }
+    if (-not (Upd-VerifySig $sh.json $sh.sig)) {
+        # 驗不過 = 更新檔可能被動過手腳 → 一律當作沒有更新,並且【明白告訴使用者】
+        Upd-Say "⚠ 更新資訊的數位簽章驗證失敗 —— 已忽略這次結果(不會下載任何東西)。"
+        if ($script:updManual) { Show-Msg "簽章驗證失敗" "從更新伺服器讀到的版本資訊【簽章不正確】。`n`n為了安全,這次結果一律忽略,不會下載任何檔案。`n如果一直出現這個訊息,請直接到 GitHub 的 Releases 頁手動下載。" "warn" }
+        $script:updManual = $false
+        return
+    }
+    try { $script:updInfo = ([System.Text.Encoding]::UTF8.GetString($sh.json) | ConvertFrom-Json) } catch { $script:updInfo = $null }
+    if (-not $script:updInfo) { Upd-Say "更新資訊格式看不懂 —— 已忽略。"; $script:updManual = $false; return }
+    $newVer = [string]$script:updInfo.version
+    $cur = ($ToolVer -replace "^v", "")
+    if (-not (Upd-VerGt $newVer $cur)) {
+        Upd-Say ("已經是最新版(" + $cur + ")。")
+        if ($script:updManual) { Show-Msg "已是最新版" ("你目前的版本 v" + $cur + " 已經是最新的了。") "info" }
+        $script:updManual = $false
+        return
+    }
+    $script:updManual = $false
+    Upd-Say ("發現新版 v" + $newVer + "(你目前是 v" + $cur + ")")
+    if ($script:updMode -eq "auto") { Upd-Download; return }
+    $ans = [System.Windows.MessageBox]::Show(
+        ("發現新版 v" + $newVer + "`n你目前的版本:v" + $cur + "`n`n要現在下載嗎?`n`n" +
+         "‧下載完會先驗證數位簽章與 SHA256,確認無誤才會讓你安裝`n" +
+         "‧不會自動覆蓋你的遊戲,也不會動到你的設定檔"),
+        "有新版可以更新", "YesNo", "Information")
+    if ($ans -eq "Yes") { Upd-Download }
+    else { Upd-Say ("發現新版 v" + $newVer + " —— 你選擇稍後再說。隨時可以按「立即檢查」。") }
+}
+
+function Upd-Download {
+    if (-not $script:updInfo) { return }
+    # 挑包:裝哪一版就更新哪一版(公會版 / 純翻譯包)
+    $key = $(if ($script:IsPure) { "pure" } else { "guild" })
+    $pkg = $script:updInfo.packages.$key
+    if (-not $pkg) { Upd-Say "更新資訊裡找不到對應的安裝包。"; return }
+    $dest = Join-Path ([System.IO.Path]::GetTempPath()) ([string]$pkg.file)
+    Upd-Say ("下載中… 0%  (" + [math]::Round(([double]$pkg.size) / 1MB, 1) + " MB)")
+    [void](Upd-StartJob "download" @{ url = [string]$pkg.url; dest = $dest; sha = ([string]$pkg.sha256).ToUpperInvariant(); cancel = $false })
+}
+
+function Upd-OnDownloaded([bool]$ok, [string]$err, $sh) {
+    if (-not $ok) {
+        Upd-Say ("下載失敗:" + $err)
+        Show-Msg "下載失敗" ($err + "`n`n可以稍後再試,或到 GitHub 的 Releases 頁手動下載。") "warn"
+        return
+    }
+    $script:updZip = [string]$sh.dest
+    Upd-Say ("已下載完成並通過驗證:" + (Split-Path -Leaf $script:updZip))
+    $running = @(Get-Process -Name "SpiritVale" -ErrorAction SilentlyContinue).Count -gt 0
+    $msg = "新版已下載完成,而且通過數位簽章與 SHA256 驗證。`n`n"
+    if ($running) { $msg += "⚠ 偵測到遊戲正在執行 —— 安裝需要覆蓋遊戲資料夾的檔案,請先完全關閉遊戲。`n`n" }
+    $msg += "要現在解壓縮並開始安裝嗎?`n(安裝程式會保留你目前的所有設定)"
+    $ans = [System.Windows.MessageBox]::Show($msg, "準備安裝", "YesNo", $(if ($running) { "Warning" } else { "Information" }))
+    if ($ans -ne "Yes") { Upd-Say ("已下載完成,放在:" + $script:updZip + "(你選擇稍後安裝)"); return }
+    if ($running) { Show-Msg "遊戲還開著" "請先完全關閉遊戲,再按一次「立即檢查」→「安裝」。`n`n(遊戲執行中時,外掛檔案是被鎖住的,覆蓋一定會失敗)" "warn"; return }
+    Upd-Install
+}
+
+function Upd-Install {
+    try {
+        $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("SpiritZh_update_" + (Get-Date -Format "yyyyMMddHHmmss"))
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+        Upd-Say "解壓縮中…"
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($script:updZip, $dir)
+        # 找安裝入口:解出來通常是一層資料夾
+        $bat = @(Get-ChildItem -LiteralPath $dir -Recurse -Filter "安裝.bat" -ErrorAction SilentlyContinue | Select-Object -First 1)
+        if ($bat.Count -eq 0) { $bat = @(Get-ChildItem -LiteralPath $dir -Recurse -Filter "install.ps1" -ErrorAction SilentlyContinue | Select-Object -First 1) }
+        if ($bat.Count -eq 0) {
+            Start-Process explorer.exe $dir
+            Show-Msg "請手動安裝" "已經解壓縮到:`n$dir`n`n裡面找不到安裝.bat,請自己雙擊執行安裝程式。" "warn"
+            return
+        }
+        $target = $bat[0].FullName
+        Upd-Say "已交給安裝程式,請照它的畫面操作。"
+        if ($target.ToLowerInvariant().EndsWith(".bat")) { Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) }
+        else { Start-Process powershell -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $target) -WorkingDirectory (Split-Path -Parent $target) }
+        Show-Msg "安裝程式已啟動" "安裝視窗會另外開啟,請照它的指示完成。`n`n安裝完成後請關閉這個設定工具再重新開啟,才會讀到新版本。" "info"
+    }
+    catch { Upd-Say ("解壓縮或啟動安裝程式失敗:" + $_.Exception.Message); Show-Msg "安裝失敗" $_.Exception.Message "error" }
+}
+
+function Upd-Check([bool]$manual) {
+    if ($script:updBusy) { if ($manual) { Show-Msg "正在忙" "上一個更新工作還沒結束,請稍候。" "info" }; return }
+    $script:updManual = $manual
+    $base = "https://raw.githubusercontent.com/$($script:UPD_OWNER)/$($script:UPD_REPO)/$($script:UPD_BRANCH)"
+    Upd-Say "檢查中…"
+    [void](Upd-StartJob "check" @{ urlJson = "$base/version.json"; urlSig = "$base/version.json.sig" })
+}
+
+$BtnUpdCheck.Add_Click({ Upd-Check $true })
+$CboUpdMode.Add_SelectionChanged({
+    $script:updMode = @("notify", "auto", "off")[[Math]::Max(0, $CboUpdMode.SelectedIndex)]
+    $pd = PluginDir
+    if ($pd -and (Test-Path -LiteralPath $pd)) { [void](Save-KV (Join-Path $pd "SpiritZh_gui.txt") @{ "update" = $script:updMode }) }
+})
+# 啟動檢查:等視窗畫完再跑,而且是背景 runspace —— 不卡開啟速度
+$script:updBootTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:updBootTimer.Interval = [TimeSpan]::FromSeconds(2)
+$script:updBootTimer.Add_Tick({
+    $script:updBootTimer.Stop()
+    if ($script:updMode -ne "off") { Upd-Check $false }
+})
+$script:updBootTimer.Start()
+
 [void]$window.ShowDialog()
