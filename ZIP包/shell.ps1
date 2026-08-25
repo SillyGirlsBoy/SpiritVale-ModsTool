@@ -22,7 +22,7 @@ function Get-DllVer([string]$path) {
     } catch { return $null }
 }
 $ToolVer = Get-DllVer (Join-Path $Here "payload\BepInEx\plugins\SpiritZh.dll")
-if (-not $ToolVer) { $ToolVer = "v3.76.4" }
+if (-not $ToolVer) { $ToolVer = "v3.76.5" }
 # ── 版本辨識(公會專用版 / 純翻譯包):讀 DLL 的 Comments = csproj <Description>(edition=guild / edition=pure)。
 #    跟 Get-DllVer 讀同一個 FileVersionInfo 物件,零成本;「決定功能開不開的 DLL」與「決定 UI 長怎樣的旗標」
 #    是同一個檔,打包時不可能湊錯(旗標檔 edition.txt 會有漏放/放錯/被手改的問題,不採用)。
@@ -914,6 +914,75 @@ $xaml = @'
       </TabItem>
 
       <!-- ═ 掉落音效(本批遷移)═ -->
+      <TabItem x:Name="TabSerial">
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="&#xE192;" FontFamily="Segoe MDL2 Assets" FontSize="15" Margin="0,0,7,0" VerticalAlignment="Center"/>
+            <TextBlock Text="序號" FontSize="14.5" VerticalAlignment="Center"/>
+          </StackPanel>
+        </TabItem.Header>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,10,6,0">
+          <StackPanel MaxWidth="1000" HorizontalAlignment="Left">
+            <Border Style="{StaticResource CardBox}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <TextBlock Style="{StaticResource Ico}" Text="&#xE192;"/>
+                  <TextBlock Text="序號" Style="{StaticResource H1}"/>
+                </StackPanel>
+                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap"
+                           Text="沒有加入指定公會、但作者給了你序號時用這裡。序號會綁定你的 Steam 帳號 —— 別人拿去用不了;你自己重灌或換電腦則可以再啟用一次。"/>
+              </StackPanel>
+            </Border>
+            <Border x:Name="CardSerial" Style="{StaticResource CardBox}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                  <TextBlock Text="①" Style="{StaticResource H1}" Margin="0,0,8,0"/>
+                  <TextBlock Text="把你的帳號識別給作者" Style="{StaticResource H1}"/>
+                </StackPanel>
+                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,0,0,10"
+                           Text="按「複製申請訊息」會複製一段寫好的文字,直接貼給作者就行。顯示「(先進遊戲一次才會產生)」的話,先進遊戲一次再按「重新整理」。"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                  <TextBlock Text="我的帳號識別" VerticalAlignment="Center" Margin="0,0,10,0" MinWidth="96"/>
+                  <TextBox x:Name="TxtMyId" Width="250" IsReadOnly="True" VerticalAlignment="Center" FontFamily="Consolas"/>
+                </StackPanel>
+                <WrapPanel>
+                  <Button x:Name="BtnMyIdReq" Content="複製申請訊息" Width="130" Margin="0,0,10,0"/>
+                  <Button x:Name="BtnMyIdCopy" Content="只複製號碼" Width="110" Margin="0,0,10,0"/>
+                  <Button x:Name="BtnMyIdRefresh" Content="重新整理" Width="100"/>
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource CardBox}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                  <TextBlock Text="②" Style="{StaticResource H1}" Margin="0,0,8,0"/>
+                  <TextBlock Text="貼上序號" Style="{StaticResource H1}"/>
+                </StackPanel>
+                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,0,0,10"
+                           Text="整串貼上,不要漏字也不要斷行(SVZH1. 開頭,大約五百多個字元)。按「套用序號」之後,如果是需要啟用的序號,會多出一顆「啟用」按鈕。"/>
+                <TextBox x:Name="TxtSerial" Height="80" TextWrapping="Wrap" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11"/>
+                <WrapPanel Margin="0,10,0,0">
+                  <Button x:Name="BtnSerialApply" Content="套用序號" Width="120" Height="30" Margin="0,0,10,0"/>
+                  <Button x:Name="BtnSerialAct" Content="啟用" Width="120" Height="30" Margin="0,0,10,0" Visibility="Collapsed"/>
+                  <Button x:Name="BtnSerialClear" Content="清除序號" Width="110" Height="30"/>
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource CardBox}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                  <TextBlock Text="③" Style="{StaticResource H1}" Margin="0,0,8,0"/>
+                  <TextBlock Text="目前狀態" Style="{StaticResource H1}"/>
+                </StackPanel>
+                <TextBlock x:Name="LblSerialState" Style="{StaticResource Hint}" TextWrapping="Wrap" Text=""/>
+                <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Text="‧套用或啟用完成後要【重開遊戲】才生效。&#10;‧想確認成功沒有:進遊戲一次,再到「關於」頁按「產生診斷報告」,最上面那行會寫「序號: …」。&#10;‧換電腦或重灌之後,同一組序號可以再啟用一次,不用跟作者要新的。"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
       <TabItem x:Name="TabAudio">
         <TabItem.Header>
           <StackPanel Orientation="Horizontal">
@@ -2055,6 +2124,7 @@ foreach ($n in @("LblStatus","LblVer","TxtPath","BtnBrowse","BtnTutorial","TabBo
                  "TxtScale","CboUp","TxtSharp","TxtFps","CboVs","CboMsaa","ChkSplash","TxtVol",
                  "RbM1","RbM2","RbM3","RbM4","CboFont","BtnFontFile","LblFontNow","LblAbout",
                  "CardUpdate","BtnUpdCheck","CboUpdMode","LblUpdState",
+                 "CardSerial","TxtMyId","BtnMyIdCopy","BtnMyIdRefresh","BtnMyIdReq","TxtSerial","BtnSerialApply","BtnSerialClear","BtnSerialAct","LblSerialState",
                  "KDpsKey","KDpsMode","KDpsReset","KDpsEdit","KToolKey","KMkKey","ChkMkAuto",
                  "ChkQOn","TQ神品","TQ珍品","TQ精品","TQ良品","BQC神品","BQC珍品","BQC精品","BQC良品","BQC凡品",
                  "CboQStyle","TQBlend","CboQName","ChkQTip","ChkQPrice","ChkQHist","TQHistDays","ChkMktPanel","ChkMktMark","TQTtl",
@@ -2084,7 +2154,7 @@ foreach ($n in @("LblStatus","LblVer","TxtPath","BtnBrowse","BtnTutorial","TabBo
                  "ImgCurPrev","LblCurPrev","TCurHotX","TCurHotY","BtnCurTL","BtnCurCenter","LblCurHotWarn",
                  "ChkCurSoft","ChkCurReapply",
                  "LblSum1","LblSum2","LblSum3","LblSum4","BtnApply","BtnResetAll","Tabs",
-                 "TabMain","TabTrans","TabAudio","TabBeam","TabQuality","TabDps","TabCustom","TabCursor","TabAbout",
+                 "TabMain","TabTrans","TabSerial","TabAudio","TabBeam","TabQuality","TabDps","TabCustom","TabCursor","TabAbout",
                  "ChipBar","CardPerfParam","CardMusic","CardMusicHelp","CardMore","CardCompat","CardPriceNote","HintAdv")) {
     Set-Variable -Name $n -Value $window.FindName($n)
 }
@@ -2093,7 +2163,8 @@ foreach ($n in @("LblStatus","LblVer","TxtPath","BtnBrowse","BtnTutorial","TabBo
 # 邏輯層(Load-*/Save-*/Update-Summary/BtnResetAll/健檢)全部照跑:Collapsed 分頁裡的控制項 FindName 照樣找得到、
 # 屬性可讀寫、事件照觸發(實測)。這裡只動 Visibility 與文案;寫檔的守門在 Do-Apply / BtnInstall / Save-Config。
 if ($script:IsPure) {
-    foreach ($t in @($TabAudio, $TabBeam, $TabQuality, $TabDps, $TabBoss, $TabCursor)) { $t.Visibility = "Collapsed" }
+    # 純翻譯包:序號對它沒有意義(GuildGateTick 在名單為空時就早退)→ 一併隱藏
+    foreach ($t in @($TabAudio, $TabBeam, $TabQuality, $TabDps, $TabBoss, $TabCursor, $TabSerial)) { $t.Visibility = "Collapsed" }
     foreach ($c in @($ChipBar, $CardView, $CardPerf, $CardCd, $CardPerfParam,
                      $CardMusic, $CardMusicHelp, $CardMore, $HintAdv, $CardFxSkill, $CardChat, $CardBuff, $CardDiag,
                      $CardCompat, $CardPriceNote, $LblSum1, $LblSum2, $LblSum3)) { $c.Visibility = "Collapsed" }
@@ -6908,5 +6979,186 @@ $script:updBootTimer.Add_Tick({
     if ($script:updMode -ne "off") { Upd-Check $false }
 })
 $script:updBootTimer.Start()
+
+# ══════════ 序號(v3.76.5)══════════
+# 使用者這一端【完全不用碰指令列】:把作者給的那串貼上、按套用,工具負責寫檔。
+# 檔案位置固定是 遊戲\BepInEx\plugins\SpiritZh_serial.txt(外掛只認這個路徑)。
+# ★ 這裡【不做驗證】—— 驗簽在外掛裡(它才有公鑰,而且驗完才知道綁的是不是這台的帳號)。
+#   工具只做格式的粗檢,擋掉「整串沒複製完」這種最常見的失誤,其餘交給外掛回報。
+# 「啟用」按鈕只在【需啟用(N:)型】的序號上出現 —— 其他型別按了也沒意義,不要讓人困惑。
+function Serial-SyncActBtn {
+    try {
+        $s = ($TxtSerial.Text -replace '\s','')
+        $show = $false
+        if ($s -and (Get-Command Serial-Kind -ErrorAction SilentlyContinue)) {
+            $show = ((Serial-Kind $s).kind -eq "N:")
+        }
+        $BtnSerialAct.Visibility = $(if ($show) { "Visible" } else { "Collapsed" })
+    } catch { }
+}
+
+function Serial-File { $d = PluginDir; if ($d) { Join-Path $d "SpiritZh_serial.txt" } else { "" } }
+
+function Serial-Refresh {
+    # 我的帳號識別:外掛進遊戲一次後會寫 SpiritZh_myid.txt
+    $d = PluginDir
+    $idFile = if ($d) { Join-Path $d "SpiritZh_myid.txt" } else { "" }
+    $id = ""
+    if ($idFile -and (Test-Path -LiteralPath $idFile)) {
+        foreach ($ln in (Get-Content -LiteralPath $idFile -Encoding UTF8)) {
+            if ($ln.Trim() -match '^\d{17}$') { $id = $ln.Trim(); break }
+        }
+    }
+    if ($id) { $TxtMyId.Text = $id; $BtnMyIdCopy.IsEnabled = $true }
+    else { $TxtMyId.Text = "(先進遊戲一次才會產生)"; $BtnMyIdCopy.IsEnabled = $false }
+
+    $f = Serial-File
+    if ($f -and (Test-Path -LiteralPath $f)) {
+        $cur = ((Get-Content -LiteralPath $f -Encoding UTF8) | Where-Object { $_.Trim() -ne "" -and -not $_.Trim().StartsWith("#") } | Select-Object -First 1)
+        if ($cur) {
+            $TxtSerial.Text = $cur.Trim()
+            $LblSerialState.Text = "已經有一組序號。是否有效要看遊戲裡的判定 —— 進遊戲後開「產生診斷報告」,最上面那行會寫「序號: …」。"
+            Serial-SyncActBtn
+            return
+        }
+    }
+    Serial-SyncActBtn
+    $LblSerialState.Text = "目前沒有序號。"
+}
+
+$BtnMyIdCopy.Add_Click({
+    try { [Windows.Clipboard]::SetText($TxtMyId.Text); $LblSerialState.Text = "已複製你的帳號識別 —— 貼給作者換序號。" }
+    catch { $LblSerialState.Text = "複製失敗,請自己反白選取那串數字。" }
+})
+
+$BtnSerialApply.Add_Click({
+    $s = ($TxtSerial.Text -replace '\s', '')   # 貼上時常常夾到換行/空白,先清掉
+    if (-not $s) { $LblSerialState.Text = "請先把序號貼進上面的欄位。"; return }
+    $f = Serial-File
+    if (-not $f) { $LblSerialState.Text = "還沒找到遊戲資料夾 —— 請先到「安裝」頁按「瀏覽」。"; return }
+    # 粗檢:SVZH1. 開頭、三段、長度像樣。真正的驗簽在外掛裡(公鑰在那邊)。
+    $p = $s.Split('.')
+    if ($p.Length -ne 3 -or $p[0] -ne "SVZH1" -or $s.Length -lt 200) {
+        $LblSerialState.Text = "這串看起來不完整。"
+        [void][Windows.MessageBox]::Show("這串序號看起來不完整。`r`n`r`n序號是 SVZH1. 開頭、五百多個字元的一整串,中間不能斷行也不能漏字。`r`n請回去重新完整複製一次。", "序號格式不對", "OK", "Warning")
+        return
+    }
+    try {
+        $body = "# SpiritZh 序號 —— 由設定工具寫入,請勿手動修改`r`n" + $s + "`r`n"
+        [IO.File]::WriteAllText($f, $body, (New-Object Text.UTF8Encoding($true)))
+        $TxtSerial.Text = $s
+        Serial-SyncActBtn
+        if ((Serial-Kind $s).kind -eq "N:") {
+            $LblSerialState.Text = "序號已存好。這是【需啟用】的序號 —— 請接著按「啟用」。"
+            [void][Windows.MessageBox]::Show("序號已存好。`r`n`r`n這組是【需啟用】的序號,請接著按「啟用」按鈕完成綁定。", "序號", "OK", "Information")
+        } else {
+            $LblSerialState.Text = "已寫入。請【重開遊戲】讓它生效。"
+            [void][Windows.MessageBox]::Show("序號已寫入。`r`n`r`n請重新開啟遊戲讓它生效。", "序號", "OK", "Information")
+        }
+    } catch { $LblSerialState.Text = "寫入失敗:" + $_.Exception.Message }
+})
+
+$BtnSerialClear.Add_Click({
+    $f = Serial-File
+    try {
+        if ($f -and (Test-Path -LiteralPath $f)) { Remove-Item -LiteralPath $f -Force }
+        $TxtSerial.Text = ""
+        $LblSerialState.Text = "序號已移除。重開遊戲後會回到公會驗證模式。"
+    } catch { $LblSerialState.Text = "移除失敗:" + $_.Exception.Message }
+})
+
+$BtnMyIdRefresh.Add_Click({ Serial-Refresh; if ($TxtMyId.Text -match '^\d{17}$') { $LblSerialState.Text = "已讀到你的帳號識別。" } })
+
+# 一鍵複製一段【格式好的申請訊息】—— 對方直接貼給作者,作者那邊也能整段吃下去自動抓號碼。
+# 少一次「你那串在哪」「只要數字」的來回。
+$BtnMyIdReq.Add_Click({
+    if ($TxtMyId.Text -notmatch '^\d{17}$') { $LblSerialState.Text = "還沒讀到帳號識別 —— 先進遊戲一次,再按「重新整理」。"; return }
+    $msg = "我要申請 SpiritVale 繁中化的序號`r`n帳號識別:" + $TxtMyId.Text + "`r`n(這串是我的 SteamID64,序號會綁定它)"
+    try { [Windows.Clipboard]::SetText($msg); $LblSerialState.Text = "已複製申請訊息 —— 直接貼給作者就好。" }
+    catch { $LblSerialState.Text = "複製失敗,請自己把上面那串數字傳給作者。" }
+})
+
+# ★ 切到「關於」頁就重讀一次。使用者的動線通常是【先開工具 → 再進遊戲 → 回來看】,
+#   只在啟動時讀一次的話,帳號識別永遠停在「先進遊戲一次才會產生」(源 2026-08-26 實測回報)。
+$Tabs.Add_SelectionChanged({
+    if ($_.Source -eq $Tabs -and ($Tabs.SelectedItem -eq $TabSerial -or $Tabs.SelectedItem -eq $TabAbout)) { Serial-Refresh }
+})
+
+# ══════════ 序號啟用(只有這裡會連網,而且只在按下「啟用」那一次)══════════
+# 「需啟用(N:)」型的序號本身不含帳號 —— 對方按下啟用,伺服器確認這組還沒被別人綁走,
+# 回一張【伺服器私鑰簽的憑證】存在本機。外掛驗那張憑證(內嵌第二把公鑰),偽造不出來。
+# ★ 之後完全離線:外掛自己不連網,遊戲行程沒有任何 HTTP 行為。
+$script:ACT_URL = "https://spiritzh-activate.bb86850663.workers.dev"
+
+function Serial-Payload([string]$serial) {
+    # 只解碼、不驗簽(工具沒有公鑰,驗簽是外掛的事)。目的只是看出它是不是 N: 型。
+    try {
+        $p = $serial.Split('.')
+        if ($p.Length -ne 3) { return $null }
+        $s = $p[1].Replace('-','+').Replace('_','/')
+        $m = $s.Length % 4
+        if ($m -eq 2) { $s += "==" } elseif ($m -eq 3) { $s += "=" } elseif ($m -eq 1) { return $null }
+        return [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($s))
+    } catch { return $null }
+}
+
+function Serial-Kind([string]$serial) {
+    $t = Serial-Payload $serial
+    if (-not $t) { return @{ kind = "?"; id = "" } }
+    $f = $t.Split('|')
+    if ($f.Length -lt 3) { return @{ kind = "?"; id = "" } }
+    $b = $f[1]
+    $k = if ($b -eq "*") { "*" } elseif ($b.Length -ge 2) { $b.Substring(0,2) } else { "?" }
+    @{ kind = $k; id = $(if ($f.Length -ge 4) { $f[3] } else { "" }) }
+}
+
+function Serial-Sha256Hex([string]$s) {
+    $h = [System.Security.Cryptography.SHA256]::Create()
+    try { (($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($s)) | ForEach-Object { $_.ToString("x2") }) -join "") }
+    finally { $h.Dispose() }
+}
+
+$BtnSerialAct.Add_Click({
+    $s = ($TxtSerial.Text -replace '\s','')
+    if (-not $s) { $LblSerialState.Text = "請先貼上序號並按「套用序號」。"; return }
+    if (-not $script:ACT_URL) { $LblSerialState.Text = "這個版本還沒設定啟用伺服器 —— 請跟作者回報。"; return }
+    $info = Serial-Kind $s
+    if (-not $info.id) { $LblSerialState.Text = "這組序號沒有編號,無法啟用。"; return }
+    if ($TxtMyId.Text -notmatch '^\d{17}$') { $LblSerialState.Text = "還沒讀到你的帳號識別 —— 先進遊戲一次,再按「重新整理」。"; return }
+    $d = PluginDir
+    if (-not $d) { $LblSerialState.Text = "還沒找到遊戲資料夾。"; return }
+    try {
+        # 舊系統預設可能還在 TLS 1.0,不設的話連不上 Cloudflare
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $LblSerialState.Text = "啟用中…"
+        $body = @{ serialId = $info.id; acctHash = (Serial-Sha256Hex $TxtMyId.Text).Substring(0,32) } | ConvertTo-Json -Compress
+        $r = Invoke-RestMethod -Uri ($script:ACT_URL.TrimEnd('/') + "/activate") -Method Post `
+                               -ContentType "application/json; charset=utf-8" -Body $body -TimeoutSec 20
+        if (-not $r.ok) {
+            $LblSerialState.Text = "啟用失敗:" + $r.reason
+            [void][Windows.MessageBox]::Show("啟用失敗`r`n`r`n" + $r.reason + "`r`n`r`n如果你確定這組序號是給你的,請聯絡作者。", "啟用失敗", "OK", "Error")
+            return
+        }
+        $f = Join-Path $d "SpiritZh_activation.txt"
+        [IO.File]::WriteAllText($f, "# SpiritZh 啟用憑證 —— 由設定工具寫入,請勿手動修改`r`n" + $r.cert + "`r`n",
+                                (New-Object Text.UTF8Encoding($true)))
+        $m2 = $(if ($r.firstTime) { "啟用成功!`r`n`r`n這組序號已經綁定你的 Steam 帳號,別人拿去用不了。" } else { "已重新取得憑證。`r`n`r`n這組序號本來就綁在你的帳號上(重灌/換電腦都可以再啟用)。" })
+        $LblSerialState.Text = $(if ($r.firstTime) { "啟用成功!已綁定你的帳號。" } else { "已重新取得憑證。" }) + " 請重開遊戲。"
+        [void][Windows.MessageBox]::Show($m2 + "`r`n`r`n請重新開啟遊戲讓它生效。", "啟用成功", "OK", "Information")
+    } catch {
+        $msg = $_.Exception.Message
+        if ($_.Exception.Response) {
+            try {
+                $sr = New-Object IO.StreamReader($_.Exception.Response.GetResponseStream())
+                $j = $sr.ReadToEnd() | ConvertFrom-Json
+                if ($j.reason) { $msg = $j.reason }
+            } catch { }
+        }
+        $LblSerialState.Text = "啟用失敗:" + $msg
+        [void][Windows.MessageBox]::Show("啟用失敗`r`n`r`n" + $msg + "`r`n`r`n如果是連線問題,檢查一下網路再試一次。", "啟用失敗", "OK", "Error")
+    }
+})
+
+Serial-Refresh
 
 [void]$window.ShowDialog()
