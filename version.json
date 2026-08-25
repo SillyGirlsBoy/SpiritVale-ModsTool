@@ -6,14 +6,14 @@
     "min_tool":  "3.76.4",
     "packages":  {
                      "guild":  {
-                                   "file":  "SpiritVale_繁中翻譯_公會專用版_v3.76.4.zip",
-                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.4/SpiritVale_繁中翻譯_公會專用版_v3.76.4.zip",
+                                   "file":  "SpiritVale_zhTW_Guild_v3.76.4.zip",
+                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.4/SpiritVale_zhTW_Guild_v3.76.4.zip",
                                    "size":  58613781,
                                    "sha256":  "F8FEFA103B0F4F71579EA497092C858B53AD979ACF88F653EAE1B6594726067C"
                                },
                      "pure":  {
-                                  "file":  "SpiritVale_繁中翻譯_一鍵安裝包_v3.76.4.zip",
-                                  "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.4/SpiritVale_繁中翻譯_一鍵安裝包_v3.76.4.zip",
+                                  "file":  "SpiritVale_zhTW_Pure_v3.76.4.zip",
+                                  "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.4/SpiritVale_zhTW_Pure_v3.76.4.zip",
                                   "size":  51309477,
                                   "sha256":  "53A66D19FDA192597FFEA6D3DCB8B83132EE03F8A3A05504817E073FE7CFA9FC"
                               }

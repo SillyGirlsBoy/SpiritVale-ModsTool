@@ -38,19 +38,27 @@ if (-not (Test-Path -LiteralPath $pubPath)) { Die "找不到公鑰:$pubPath" }
 
 # ── 1. 找 ZIP、算雜湊 ──
 $pkgs = @{}
-foreach ($kv in @(@{k="pure"; n="一鍵安裝包"}, @{k="guild"; n="公會專用版"})) {
+# ★ GitHub Release 的附件檔名不接受非 ASCII:它會把中文整段換成「.」,
+#   兩個版本會撞成同一個 SpiritVale_._._vX.Y.Z.zip(第二個直接被拒),
+#   而且 version.json 的下載連結會指到不存在的檔名 → 自動更新按了必失敗。
+#   所以:本機 ZIP 名稱維持中文(巴哈發佈照舊),另外複製一份 ASCII 名上傳 GitHub,
+#   version.json 的 file/url 一律用 ASCII 名。
+foreach ($kv in @(@{k="pure"; n="一鍵安裝包"; a="Pure"}, @{k="guild"; n="公會專用版"; a="Guild"})) {
     $file = "SpiritVale_繁中翻譯_$($kv.n)_v$Version.zip"
     $path = Join-Path $Root $file
     if (-not (Test-Path -LiteralPath $path)) { Die "找不到安裝包:$file`n     先跑 pack.ps1 打包" }
+    $asset = "SpiritVale_zhTW_$($kv.a)_v$Version.zip"          # 上傳用的 ASCII 檔名
+    $apath = Join-Path $Root $asset
+    Copy-Item -LiteralPath $path -Destination $apath -Force
     $h = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToUpperInvariant()
     $sz = (Get-Item -LiteralPath $path).Length
     $pkgs[$kv.k] = [ordered]@{
-        file   = $file
-        url    = "https://github.com/$Owner/$Repo/releases/download/v$Version/$file"
+        file   = $asset
+        url    = "https://github.com/$Owner/$Repo/releases/download/v$Version/$asset"
         size   = $sz
         sha256 = $h
     }
-    Ok "$($kv.n)  $([math]::Round($sz/1MB,2)) MB  $($h.Substring(0,16))…"
+    Ok "$($kv.n)  $([math]::Round($sz/1MB,2)) MB  $($h.Substring(0,16))…  → $asset"
 }
 
 # ── 2. 組 version.json ──
