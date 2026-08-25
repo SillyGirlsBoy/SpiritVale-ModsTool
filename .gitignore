@@ -17,9 +17,9 @@
 !發佈校驗_v*.txt
 
 # ── 3. 放行:外掛原始碼(不含編譯產物)──
-!SpiritZh_BepInEx_src/*.cs
-!SpiritZh_BepInEx_src/*.csproj
-!SpiritZh_BepInEx_src/*.md
+# !SpiritZh_BepInEx_src/*.cs   （2026-08-26 源決定:原始碼與打包腳本不公開）
+# !SpiritZh_BepInEx_src/*.csproj   （2026-08-26 源決定:原始碼與打包腳本不公開）
+# !SpiritZh_BepInEx_src/*.md   （2026-08-26 源決定:原始碼與打包腳本不公開）
 SpiritZh_BepInEx_src/bin/
 SpiritZh_BepInEx_src/obj/
 SpiritZh_BepInEx_src/.vs/
@@ -35,7 +35,7 @@ ZIP包/*.備份*
 ZIP包/settings.ps1.v3.59.bak
 
 # ── 5. 放行:打包與發佈工具 ──
-!pack.ps1
+# !pack.ps1   （2026-08-26 源決定:原始碼與打包腳本不公開）
 !tools/*.ps1
 !tools/*.md
 # 公鑰:要進 repo、要嵌進設定工具(公開的,沒關係)
