@@ -2,20 +2,28 @@
     "schema":  1,
     "version":  "3.76.5",
     "released":  "2026-08-26",
+    "changes":  [
+                    "新增「序號」分頁:沒加入指定公會也能用序號開啟功能",
+                    "修正滑鼠游標在過圖 / 人物死亡 / 切視窗後變回 Windows 預設",
+                    "新增暮色系列武器與防具、翼耳、黑暗莊園與黑暗要塞的回聲怪翻譯",
+                    "譯文太長撐破框時自動縮字,地圖怪物清單不再互相重疊",
+                    "修正玩家名稱可能被當成物品名翻掉的問題",
+                    "攻速顯示與其他屬性一致(不再只有它帶英文)"
+                ],
     "notes":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/tag/v3.76.5",
     "min_tool":  "3.76.4",
     "packages":  {
                      "guild":  {
                                    "file":  "SpiritVale_zhTW_Guild_v3.76.5.zip",
                                    "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.5/SpiritVale_zhTW_Guild_v3.76.5.zip",
-                                   "size":  58624596,
-                                   "sha256":  "61FFDFEC33F08AD3E8B794635468BAA3A305D89DF6B369D83209340B21967720"
+                                   "size":  58624878,
+                                   "sha256":  "179937FFD42D0D36A84718D9C4D366563DE5BC8E37F02A0484E2FE96F8AC019F"
                                },
                      "pure":  {
                                   "file":  "SpiritVale_zhTW_Pure_v3.76.5.zip",
                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.5/SpiritVale_zhTW_Pure_v3.76.5.zip",
-                                  "size":  51320177,
-                                  "sha256":  "9B1AC1D22A25B3C004F618083F55793FA47D2DF9B4B13DB0503987B76B464790"
+                                  "size":  51320463,
+                                  "sha256":  "05631411A8E86C8A306CCCDA772600039D3F1D7B7B0E7EA93792FECE772FECC9"
                               }
                  }
 }

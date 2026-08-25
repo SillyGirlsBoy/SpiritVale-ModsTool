@@ -64,10 +64,26 @@ foreach ($kv in @(@{k="pure"; n="一鍵安裝包"; a="Pure"}, @{k="guild"; n="�
 # ── 2. 組 version.json ──
 #   ★ min_tool:舊版設定工具若低於這個版本就只提示「請手動下載」不自動更新
 #     (將來若更新流程改格式,舊工具不會誤解新格式)
+# ── 更新摘要 ──
+#   放在 更新摘要_v<版本>.txt(一行一條,# 開頭是註解)。
+#   ★ 它會【跟其他欄位一起被簽】—— 中途被人改過就驗不過,不可能被拿來塞廣告或釣魚連結。
+#   沒有這個檔也不會怎樣,只是更新提示不會列出改了什麼。
+$chgPath = Join-Path $Root ("更新摘要_v" + $Version + ".txt")
+$changes = @()
+if (Test-Path -LiteralPath $chgPath) {
+    $changes = @(Get-Content -LiteralPath $chgPath -Encoding UTF8 |
+                 ForEach-Object { $_.Trim() } |
+                 Where-Object { $_ -ne "" -and -not $_.StartsWith("#") })
+    Ok ("更新摘要 " + $changes.Count + " 條")
+} else {
+    Write-Host ("   [!] 沒有 " + (Split-Path -Leaf $chgPath) + " —— 更新提示不會列出改了什麼") -ForegroundColor Yellow
+}
+
 $obj = [ordered]@{
     schema   = 1
     version  = $Version
     released = (Get-Date -Format "yyyy-MM-dd")
+    changes  = $changes
     notes    = "https://github.com/$Owner/$Repo/releases/tag/v$Version"
     min_tool = "3.76.4"
     packages = $pkgs

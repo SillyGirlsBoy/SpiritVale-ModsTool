@@ -6868,6 +6868,20 @@ function Upd-Poll {
     if ($mode -eq "check") { Upd-OnChecked $ok $err $sh } else { Upd-OnDownloaded $ok $err $sh }
 }
 
+# 更新摘要 → 給對話框用的文字。內容是【簽章保護】的,不是隨便抓來的網頁文字。
+# 最多列 12 條,免得對話框長到爆版;其餘請看 GitHub 的 Releases 頁。
+function Upd-ChangeText {
+    try {
+        $c = $script:updInfo.changes
+        if (-not $c -or $c.Count -eq 0) { return "" }
+        $n = [Math]::Min(12, $c.Count)
+        $s = "`n這版改了什麼:`n"
+        for ($i = 0; $i -lt $n; $i++) { $s += ("  ‧" + $c[$i] + "`n") }
+        if ($c.Count -gt $n) { $s += ("  ‧…另外還有 " + ($c.Count - $n) + " 項`n") }
+        return $s
+    } catch { return "" }
+}
+
 function Upd-OnChecked([bool]$ok, [string]$err, $sh) {
     if (-not $ok) {
         Upd-Say ("查不到更新資訊(" + $err + ")—— 不影響使用,稍後再試或到 GitHub 手動看。")
@@ -6896,7 +6910,7 @@ function Upd-OnChecked([bool]$ok, [string]$err, $sh) {
     Upd-Say ("發現新版 v" + $newVer + "(你目前是 v" + $cur + ")")
     if ($script:updMode -eq "auto") { Upd-Download; return }
     $ans = [System.Windows.MessageBox]::Show(
-        ("發現新版 v" + $newVer + "`n你目前的版本:v" + $cur + "`n`n要現在下載嗎?`n`n" +
+        ("發現新版 v" + $newVer + "`n你目前的版本:v" + $cur + "`n" + (Upd-ChangeText) + "`n要現在下載嗎?`n`n" +
          "‧下載完會先驗證數位簽章與 SHA256,確認無誤才會讓你安裝`n" +
          "‧不會自動覆蓋你的遊戲,也不會動到你的設定檔"),
         "有新版可以更新", "YesNo", "Information")
@@ -6923,8 +6937,10 @@ function Upd-OnDownloaded([bool]$ok, [string]$err, $sh) {
     }
     $script:updZip = [string]$sh.dest
     Upd-Say ("已下載完成並通過驗證:" + (Split-Path -Leaf $script:updZip))
+    $script:updNotes = (Upd-ChangeText)   # 安裝完成後還要再顯示一次
     $running = @(Get-Process -Name "SpiritVale" -ErrorAction SilentlyContinue).Count -gt 0
-    $msg = "新版已下載完成,而且通過數位簽章與 SHA256 驗證。`n`n"
+    $msg = "新版 v" + [string]$script:updInfo.version + " 已下載完成,而且通過數位簽章與 SHA256 驗證。`n"
+    $msg += (Upd-ChangeText) + "`n"
     if ($running) { $msg += "⚠ 偵測到遊戲正在執行 —— 安裝需要覆蓋遊戲資料夾的檔案,請先完全關閉遊戲。`n`n" }
     $msg += "要現在解壓縮並開始安裝嗎?`n(安裝程式會保留你目前的所有設定)"
     $ans = [System.Windows.MessageBox]::Show($msg, "準備安裝", "YesNo", $(if ($running) { "Warning" } else { "Information" }))
