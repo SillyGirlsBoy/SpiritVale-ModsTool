@@ -1,21 +1,21 @@
 {
     "schema":  1,
-    "version":  "3.76.3",
-    "released":  "2026-08-25",
-    "notes":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/tag/v3.76.3",
+    "version":  "3.76.4",
+    "released":  "2026-08-26",
+    "notes":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/tag/v3.76.4",
     "min_tool":  "3.76.4",
     "packages":  {
                      "guild":  {
-                                   "file":  "SpiritVale_繁中翻譯_公會專用版_v3.76.3.zip",
-                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.3/SpiritVale_繁中翻譯_公會專用版_v3.76.3.zip",
-                                   "size":  58596981,
-                                   "sha256":  "47A2FEF930880E131C62BC70CF502A52DD37EFE9E5ACD80C7DBDB61C20E2FEE8"
+                                   "file":  "SpiritVale_繁中翻譯_公會專用版_v3.76.4.zip",
+                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.4/SpiritVale_繁中翻譯_公會專用版_v3.76.4.zip",
+                                   "size":  58613781,
+                                   "sha256":  "F8FEFA103B0F4F71579EA497092C858B53AD979ACF88F653EAE1B6594726067C"
                                },
                      "pure":  {
-                                  "file":  "SpiritVale_繁中翻譯_一鍵安裝包_v3.76.3.zip",
-                                  "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.3/SpiritVale_繁中翻譯_一鍵安裝包_v3.76.3.zip",
-                                  "size":  51293262,
-                                  "sha256":  "403A8C44663D4DA551371D6E3025D68396992C2FA54D8453631E50DA153F9FDE"
+                                  "file":  "SpiritVale_繁中翻譯_一鍵安裝包_v3.76.4.zip",
+                                  "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.4/SpiritVale_繁中翻譯_一鍵安裝包_v3.76.4.zip",
+                                  "size":  51309477,
+                                  "sha256":  "53A66D19FDA192597FFEA6D3DCB8B83132EE03F8A3A05504817E073FE7CFA9FC"
                               }
                  }
 }

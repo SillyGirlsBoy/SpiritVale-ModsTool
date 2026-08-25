@@ -22,7 +22,7 @@ function Get-DllVer([string]$path) {
     } catch { return $null }
 }
 $ToolVer = Get-DllVer (Join-Path $Here "payload\BepInEx\plugins\SpiritZh.dll")
-if (-not $ToolVer) { $ToolVer = "v3.76.3" }
+if (-not $ToolVer) { $ToolVer = "v3.76.4" }
 # ── 版本辨識(公會專用版 / 純翻譯包):讀 DLL 的 Comments = csproj <Description>(edition=guild / edition=pure)。
 #    跟 Get-DllVer 讀同一個 FileVersionInfo 物件,零成本;「決定功能開不開的 DLL」與「決定 UI 長怎樣的旗標」
 #    是同一個檔,打包時不可能湊錯(旗標檔 edition.txt 會有漏放/放錯/被手改的問題,不採用)。
