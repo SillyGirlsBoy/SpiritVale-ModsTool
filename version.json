@@ -1,29 +1,33 @@
 {
     "schema":  1,
-    "version":  "3.76.5",
-    "released":  "2026-08-26",
+    "version":  "3.76.6",
+    "released":  "2026-08-27",
     "changes":  [
-                    "新增「序號」分頁:沒加入指定公會也能用序號開啟功能",
-                    "修正滑鼠游標在過圖 / 人物死亡 / 切視窗後變回 Windows 預設",
-                    "新增暮色系列武器與防具、翼耳、黑暗莊園與黑暗要塞的回聲怪翻譯",
-                    "譯文太長撐破框時自動縮字,地圖怪物清單不再互相重疊",
-                    "修正玩家名稱可能被當成物品名翻掉的問題",
-                    "攻速顯示與其他屬性一致(不再只有它帶英文)"
+                    "公會白名單改成可線上更新:之後加公會不用再重新下載安裝包",
+                    "公會方案支援賣斷與年費(年費到期自動失效)",
+                    "修正公會序號的小號無法沿用:大號驗證過,同帳號其他角色 30 天內直接可用",
+                    "修正裝備 tooltip 的漏翻:魔力消耗改由生命支付、每 N 點生命、每損失 N% 生命獲得 N 層",
+                    "功能未開啟時的提示不再寫死公會名稱",
+                    "診斷報告新增「公會 / 序號判定紀錄」,回報問題時一眼看得出是哪一關沒過",
+                    "修正帳號識別檔寫不出來時完全沒有提示的問題",
+                    "修正設定工具在含空白的路徑下,自動更新的安裝程式不會啟動",
+                    "修正設定工具的「開啟資料夾」按鈕在使用者名稱含空白時失效"
                 ],
-    "notes":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/tag/v3.76.5",
+    "notes":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/tag/v3.76.6",
     "min_tool":  "3.76.4",
+    "guilds":  "U1ZaSC1HTEQxfDIwMjYwODI3MDQ0NHwyMDI2MDgyN3wyYTQ4MjM1NGRiY2M3MTRkZDJkOTU5NjcyZjVhZDE5MGY1ODEyZWZiNzM0MGVjNzhlYzQ0ZTA0OGM5YjFlYTg4OjAsMGIxNmYxNzM3MDY3ZTYzMGViMDNjZjczZTc2MDExMmYxYzRlMTU5YmRkOTFjNTdjOWI5N2JjMTc4ZDEyYmU5NjowLGIyYTliZDQ1ZjY2Y2JmYTEwOWZlZGRmZGQ1MzVhNjNiNDY5OTRkNzA0MTU1NmIzNzU2MWQ4NWE4ZWE5YjFmYjI6MCxkMmZhMzY5MTBiNTA3MzZiNzE5NWRiOWU5ZWUyYmYwN2I3ZDUxNWI1ZDZhMTQ2MWM0NzdiZjZhNmEwODQ0NDgxOjAsNTIzY2U0NjFiZGY2MGY4NzdkZTBmMTU5ODNiOWRlZWI4MGRlMzlmMjVjMDAyM2ZjOGQwOWVhYTlhOTMyMDBmZTowLDJhZjBiMGY2NDU0YjBmNGVkZWM3OTJmOWNhOWE2MDdkZTRmM2I4OWU2ODZiYmRiZmY1MGExZWNhNDI0YzcxMjM6MA.iWUE5vAXNPXtGyK6O6hFplKInwgmZReCLqStHortyu7x0KU9CtYNEwWxl7wFInbqmXw8PrBiEr1tx7xFivCLyd4Qclr4bMNT6bw0XaZulsJ28ZK9inTqZ7I-LBriueGvx1DGHxulx_fAYNdmaI03lXwuinhsFiyons4jZtxPQDud7ZaY08bNm9voNuo7xY_0sghMTTjGfuZbajGk9mXilSugcyTjJvBLTekVKuncqtTiQsImFxwlE2tJU2SKhO_RUhMYpaIUIy8qDEkVCepumoODqq0wGjdNdd1HHY8lQGfyDq4RNU8EwIDlDuY623_7gs-MwQeepTjbfxocivDZUeFo3JtRz4uuxVbZQowrpkUywKFmSZXQiqA4bZU5b_DLRkeGUi8zEgtPNTbfBrjoWDfq6giOIdFoR55DsU1vkrKGVMPJsQYv0YQGLRcLFmjQnhp-s2m24uiNZv232fN-y35nwScv5xJlgQ8n9wDNvD6GQq3MmGKmwSC6wF3CnzHr",
     "packages":  {
                      "guild":  {
-                                   "file":  "SpiritVale_zhTW_Guild_v3.76.5.zip",
-                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.5/SpiritVale_zhTW_Guild_v3.76.5.zip",
-                                   "size":  58624878,
-                                   "sha256":  "179937FFD42D0D36A84718D9C4D366563DE5BC8E37F02A0484E2FE96F8AC019F"
+                                   "file":  "SpiritVale_zhTW_Guild_v3.76.6.zip",
+                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.6/SpiritVale_zhTW_Guild_v3.76.6.zip",
+                                   "size":  58629489,
+                                   "sha256":  "C2821829BF665650EDE7322079EA6DA51D0440231A8ED0E50BB748B4963CBF4A"
                                },
                      "pure":  {
-                                  "file":  "SpiritVale_zhTW_Pure_v3.76.5.zip",
-                                  "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.5/SpiritVale_zhTW_Pure_v3.76.5.zip",
-                                  "size":  51320463,
-                                  "sha256":  "05631411A8E86C8A306CCCDA772600039D3F1D7B7B0E7EA93792FECE772FECC9"
+                                  "file":  "SpiritVale_zhTW_Pure_v3.76.6.zip",
+                                  "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.6/SpiritVale_zhTW_Pure_v3.76.6.zip",
+                                  "size":  51325086,
+                                  "sha256":  "3D6C0EE6EECC3438B44FE4F849660FB427E283BAB102E166931FC344B20E994E"
                               }
                  }
 }
