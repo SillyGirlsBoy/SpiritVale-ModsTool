@@ -1,27 +1,29 @@
 {
     "schema":  1,
-    "version":  "3.76.9",
+    "version":  "3.76.10",
     "released":  "2026-08-28",
     "changes":  [
-                    "真正修好更新後重複跳更新的問題(上一版沒修乾淨,原因是更新到了暫存資料夾)",
-                    "更新時不再把安裝包位置寫成暫存路徑,遊戲內熱鍵叫設定工具不會失效",
-                    "遊戲中若有新版可更新,會直接在畫面上提示,不用開設定工具才知道"
+                    "修正製作視窗等處的文字被縮得太小看不清(新增最小字級保護,可在 view.txt 調整)",
+                    "修正遊戲讀不到公會名時,序號與帳號白名單的使用者會被誤判成未授權",
+                    "修正在遊戲執行中變更詞條品質設定,極少數情況可能造成遊戲卡住不動",
+                    "「移除翻譯」現在會一併備份序號與啟用憑證,重裝後複製回去即可,不用再跟作者要",
+                    "用純翻譯包覆蓋公會專用版前會先警告,避免誤把付費功能關掉"
                 ],
-    "notes":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/tag/v3.76.9",
+    "notes":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/tag/v3.76.10",
     "min_tool":  "3.76.4",
-    "guilds":  "U1ZaSC1HTEQxfDIwMjYwODI4MDAwOXwyMDI2MDgyOHwyYTQ4MjM1NGRiY2M3MTRkZDJkOTU5NjcyZjVhZDE5MGY1ODEyZWZiNzM0MGVjNzhlYzQ0ZTA0OGM5YjFlYTg4OjAsMGIxNmYxNzM3MDY3ZTYzMGViMDNjZjczZTc2MDExMmYxYzRlMTU5YmRkOTFjNTdjOWI5N2JjMTc4ZDEyYmU5NjowLGIyYTliZDQ1ZjY2Y2JmYTEwOWZlZGRmZGQ1MzVhNjNiNDY5OTRkNzA0MTU1NmIzNzU2MWQ4NWE4ZWE5YjFmYjI6MCxkMmZhMzY5MTBiNTA3MzZiNzE5NWRiOWU5ZWUyYmYwN2I3ZDUxNWI1ZDZhMTQ2MWM0NzdiZjZhNmEwODQ0NDgxOjAsNTIzY2U0NjFiZGY2MGY4NzdkZTBmMTU5ODNiOWRlZWI4MGRlMzlmMjVjMDAyM2ZjOGQwOWVhYTlhOTMyMDBmZTowLDJhZjBiMGY2NDU0YjBmNGVkZWM3OTJmOWNhOWE2MDdkZTRmM2I4OWU2ODZiYmRiZmY1MGExZWNhNDI0YzcxMjM6MCwxZTg0YjA4YzU5YmYyNGIyMGQzNmYzMDNiNzUzYmRkZGE0YzVmN2U1YjlhMzkwMDhjODQ5OGQwZDc4ZDhjZDg1OjAsMTc2YzVlMTNkMmFkMjU4OGI2MDBlNzZiY2QzMmNmMzc1Zjc1ODM0YzQwNTFlZTViMzI5ZjZjNGNlOGRlYWU0ZTowLDlhYTk3OTkyMDI5M2FmMzU0ODc0MjMwZDc3NjI0YmFjOGUzYWFlMjc5OWFkYmU5NGE5ZDVkOTg5YzVjYzE0YTk6MA.PgL0zN8-L2By4IT0GRs4QFOAMiADuXCQTSEERSpluoMHfoS1QcSvZgTeYT7pZy3gaRSf_T4w0l_cCM8kS-6MTQ4AIzCyGiP6E8udSkf3DFT4dMqBZdIKbQ_CWKRbKqkPdkmYkGnbrnyKNkiWAIJXCIYbINHQGFjO9aHwQmlgryKBKAyjpmj7sAHO7xrG_0CDbE9fqEgzu_Tx4CTHKF2cwzPmEHJVfcUsLwHMtI4-fbqtSsf0S8rPLdNmExci1UHhvdAE3qzMZo4MfKcx66JIGa0dtE-Wg1Zdn756eCkIBZcpRGJbhj8tQWTLp6JkcGiN3rCzuXrHq-pBeG1NiEE4mbkfynkxshWzllzF_jfDQvyk7Yjwxz4IqgDJIIh3in1QQc2s1LydScKBtKMHLdV11L8ECbHVGAzK46bINe_MiAlRlW0aAZanl8xODjuzAterM6vjQlawt6Jz-o80Zl-RW4rS1EcYRdaMSfIgveqzNxN_XGnri85w03nVITOm5Kej",
+    "guilds":  "U1ZaSC1HTEQxfDIwMjYwODI4MDY1OXwyMDI2MDgyOHwyYTQ4MjM1NGRiY2M3MTRkZDJkOTU5NjcyZjVhZDE5MGY1ODEyZWZiNzM0MGVjNzhlYzQ0ZTA0OGM5YjFlYTg4OjAsMGIxNmYxNzM3MDY3ZTYzMGViMDNjZjczZTc2MDExMmYxYzRlMTU5YmRkOTFjNTdjOWI5N2JjMTc4ZDEyYmU5NjowLGIyYTliZDQ1ZjY2Y2JmYTEwOWZlZGRmZGQ1MzVhNjNiNDY5OTRkNzA0MTU1NmIzNzU2MWQ4NWE4ZWE5YjFmYjI6MCxkMmZhMzY5MTBiNTA3MzZiNzE5NWRiOWU5ZWUyYmYwN2I3ZDUxNWI1ZDZhMTQ2MWM0NzdiZjZhNmEwODQ0NDgxOjAsNTIzY2U0NjFiZGY2MGY4NzdkZTBmMTU5ODNiOWRlZWI4MGRlMzlmMjVjMDAyM2ZjOGQwOWVhYTlhOTMyMDBmZTowLDJhZjBiMGY2NDU0YjBmNGVkZWM3OTJmOWNhOWE2MDdkZTRmM2I4OWU2ODZiYmRiZmY1MGExZWNhNDI0YzcxMjM6MCwxZTg0YjA4YzU5YmYyNGIyMGQzNmYzMDNiNzUzYmRkZGE0YzVmN2U1YjlhMzkwMDhjODQ5OGQwZDc4ZDhjZDg1OjAsMTc2YzVlMTNkMmFkMjU4OGI2MDBlNzZiY2QzMmNmMzc1Zjc1ODM0YzQwNTFlZTViMzI5ZjZjNGNlOGRlYWU0ZTowLDlhYTk3OTkyMDI5M2FmMzU0ODc0MjMwZDc3NjI0YmFjOGUzYWFlMjc5OWFkYmU5NGE5ZDVkOTg5YzVjYzE0YTk6MA.BfMRnQ16DaUuYjr2_6u3qaqMx4abywCVw0MICUMbX8UEmMWC0XdWN960n4p6ZktuWv-8DT0Bpap2ff7GTFOuSIOR0TJpEWguaZMJeTumVeWR0_y9Ht8qpTJ0fZgbECWxENofGIB87S5JtaRFlTm9D-_9dS-UKg2MeED6QCal0DJw_wuzgqOUXh_DLjhuAB5f88v8XiwfWgW3JpdmXkoek9Wj7_JzMtiRvFUGnulHFu903X3LLAzQXb7g5h4HnzU9r6OHCpQoFJIe-XCZrp1DWlyaE3rQZ_5sXwJCXVFmXZ4KUA5_NgaIgomyTWNJZCDGAODUKgG9BwRUiIJyvvLQSAKoChgyW4jubHAfSuFWCzleoT85u96LCHu5eh-WZnkpBErelNrFVJT4SQtLLtvp4ezZwDnzTvraViB5GM6ol5RX8PM_mGqUbtv7z0in93AO_0jZkoAVc7nq4kgxiIkX6n0O2wDMEdXJ0r2fmW-RZ35DbK8Ih9mnAimKN5Nsp97T",
     "packages":  {
                      "guild":  {
-                                   "file":  "SpiritVale_zhTW_Guild_v3.76.9.zip",
-                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.9/SpiritVale_zhTW_Guild_v3.76.9.zip",
-                                   "size":  58634849,
-                                   "sha256":  "3C24CD3B8F5FAD5CCB15AA099BB91F25DE3ED05447068BEB4F43E2773C64AA49"
+                                   "file":  "SpiritVale_zhTW_Guild_v3.76.10.zip",
+                                   "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.10/SpiritVale_zhTW_Guild_v3.76.10.zip",
+                                   "size":  58639358,
+                                   "sha256":  "3B9E4FE70ED26E3E0C5B4077ECA7CA81AEE782FFE92453909CD755C2BA385606"
                                },
                      "pure":  {
-                                  "file":  "SpiritVale_zhTW_Pure_v3.76.9.zip",
-                                  "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.9/SpiritVale_zhTW_Pure_v3.76.9.zip",
-                                  "size":  51330569,
-                                  "sha256":  "C05B949B9F5B0D78FCFD14795C2439EDBAA51CA70CF2FC1E382998CDAB9CDE21"
+                                  "file":  "SpiritVale_zhTW_Pure_v3.76.10.zip",
+                                  "url":  "https://github.com/SillyGirlsBoy/SpiritVale-ModsTool/releases/download/v3.76.10/SpiritVale_zhTW_Pure_v3.76.10.zip",
+                                  "size":  51333568,
+                                  "sha256":  "B8980EF079894B253692198D92867BD2A7A996CBE7AC009D08CC2E0CFAFF0CB3"
                               }
                  }
 }
