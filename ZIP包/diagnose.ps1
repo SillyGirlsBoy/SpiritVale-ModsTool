@@ -140,7 +140,11 @@ try {
     foreach ($e in @($ex)) { if ("$e" -like "N/A:*") { $denied = $true } }
     if ($denied) { W "  無法查看(需要系統管理員權限才能讀排除清單)— 此項無法判定" }
     elseif ($ex -and ($ex -contains $GamePath)) { W "  已包含遊戲資料夾 — 正常" }
-    elseif ($ex) { W "  未包含遊戲資料夾!目前排除清單:$($ex -join '; ')" }
+    # ★★ v3.76.12:【絕對不要】把整份排除清單倒進報告。
+    #   那裡面是使用者所有其他遊戲/工具/私人資料夾的路徑 —— 是不折不扣的個資,
+    #   而這份報告是要公開貼給作者、甚至貼在論壇的。報告結尾還寫著「不含個人資料」,
+    #   等於自己打自己的臉。只回報「有沒有含遊戲資料夾」這一個事實就夠診斷了。
+    elseif ($ex) { W ("  未包含遊戲資料夾(清單裡有 " + @($ex).Count + " 筆其他項目,為保護隱私不列出)") }
     else { W "  排除清單是空的 — 未加入遊戲資料夾" }
 } catch { W "  無法讀取(可能未使用 Windows Defender,或用第三方防毒)" }
 W ""
@@ -318,6 +322,71 @@ try {
             }
         }
         else { W "  (這一場沒有掉落紀錄 —— 要驗證音效,打幾隻怪讓東西掉出來再跑一次診斷)" }
+    }
+} catch { W ("  無法讀取:" + $_.Exception.Message) }
+W ""
+# ── 公會 / 序號判定紀錄 ──
+#   ★ 這幾行是【開場就印完】的,玩一陣子後早就被推出下面那「最後 40 行」之外 ——
+#     跟掉落音效當初一模一樣的坑。而「功能沒開 / 序號貼了沒反應」是最常見的客訴,
+#     判定過程不在報告裡的話,每次都得再跑一趟跟對方要完整的 LogOutput.log。
+#   一整場的判定行不多(每次狀態變化才印一行),全帶也不會把報告灌爆,上限 40 行保險。
+W "[公會 / 序號判定紀錄]"
+try {
+    if (Test-Path $log) {
+        $g9 = @(Select-String -LiteralPath $log -Pattern "\[guild\]|\[serial\]|\[edition\]" -Encoding UTF8)
+        if ($g9.Count -gt 0) {
+            $show9 = @($g9 | Select-Object -Last 40)
+            # ★★ v3.76.11(深度審查 H17):公會名要【遮蔽】才能寫進報告。
+            #   診斷報告是拿來公開貼給作者/在論壇回報的,而 log 裡的
+            #   「讀到自己的公會名:「xxx」」是明文 —— 貼出去等於公開白名單,
+            #   任何人只要把自己的公會改成同名就能白嫖 NT$3000 的方案。
+            #   只留頭尾各一個字,足夠作者比對、又不足以讓別人照抄。
+            foreach ($x9 in $show9) {
+                $line9 = $x9.Line
+                $line9 = [regex]::Replace($line9, '(公會名[::]\s*「)([^」]+)(」)', {
+                    param($m)
+                    $g = $m.Groups[2].Value
+                    $mask = if ($g.Length -le 2) { "**" } else { $g.Substring(0,1) + ("*" * [Math]::Min(6, $g.Length - 2)) + $g.Substring($g.Length - 1) }
+                    $m.Groups[1].Value + $mask + $m.Groups[3].Value
+                })
+                W ("  " + $line9)
+            }
+            if ($g9.Count -gt 40) { W ("  …(另有 " + ($g9.Count - 40) + " 行較早的判定,完整內容請附 LogOutput.log)") }
+            W ""
+            W "  ── 怎麼看這一段 ──"
+            W "    「公會驗證: 通過」那行結尾會寫【是靠哪一條過的】:"
+            W "      公會名命中允許名單            = 你的公會在白名單裡"
+            W "      序號                          = 靠序號開的"
+            W "      Steam 帳號白名單              = 指定帳號"
+            W "      同帳號其他角色已通過公會驗證  = 小號沿用大號的憑證"
+            W "    沒有任何 [guild] 行 = BepInEx 有起來但外掛沒判定到,或裝的是純翻譯包(序號在純翻譯包上無效)。"
+        }
+        else { W "  (這一場沒有任何公會/序號判定紀錄 —— 裝的可能是純翻譯包,或這一場沒真的進到遊戲世界)" }
+    }
+    else { W "  (LogOutput.log 不存在)" }
+} catch { W ("  無法讀取:" + $_.Exception.Message) }
+W ""
+# ── 傳說(金/紫光)掉落永久紀錄 ──
+#   ★ 這個檔【跨場保留、重開遊戲不清】,所以就算金光是好幾場之前掉的,原因也還留著 ——
+#     這正是解「金光打到了卻沒響」唯一有意義的證據。最後一欄就是【為什麼沒響】。
+W "[傳說(金/紫光)掉落永久紀錄]"
+try {
+    $gp = Join-Path $GamePath "BepInEx\plugins\SpiritZh_golddrop.txt"
+    if (Test-Path -LiteralPath $gp) {
+        $gl = @(Get-Content -LiteralPath $gp -Encoding UTF8 | Where-Object { $_.Trim() -ne "" -and -not $_.Trim().StartsWith("#") })
+        if ($gl.Count -gt 0) {
+            $showg = @($gl | Select-Object -Last 30)
+            foreach ($x in $showg) { W ("  " + $x) }
+            if ($gl.Count -gt 30) { W ("  …(另有 " + ($gl.Count - 30) + " 筆較早的,完整內容請直接附這個 SpiritZh_golddrop.txt)") }
+            W ""
+            W "  ── 看最後一欄的原因 ──"
+            W "    已播放(有響)              = 正常"
+            W "    不是你的掉落→ownonly 擋下  = 王掉落的鎖定跟一般掉落不同;把 audio.txt 的 ownonly 設 0 再打一次就能確認"
+            W "    這個稀有度沒有設定音效檔    = audio.txt 的 Legendary= 沒填,或金光的稀有度字串不是 Legendary"
+            W "    過濾器沒放行                = filter.txt 的稀有度/分類把它擋掉了"
+        } else { W "  (檔案存在但還沒有任何傳說掉落 —— 打到一件金光/紫光物品後就會記錄)" }
+    } else {
+        W "  (還沒有這個檔 —— 需要 v3.76.7 以上,而且打到過至少一件傳說掉落才會產生)"
     }
 } catch { W ("  無法讀取:" + $_.Exception.Message) }
 W ""

@@ -81,15 +81,29 @@ if (Test-Path -LiteralPath $pluginDir) {
                 "   自己調過的值,再打開對應的檔案把那一行【單獨】抄回去。",
                 "",
                 "   例外:自訂翻譯 SpiritZh_custom.txt、不翻譯清單 SpiritZh_keep.txt、",
-                "   以及你自己放的音樂/音效/游標圖,整個複製回去都沒問題。"
+                "   以及你自己放的音樂/音效/游標圖,整個複製回去都沒問題。",
+                "",
+                "★ 如果你有買序號 / 公會授權,這幾個檔【一定要整個複製回去】:",
+                "     SpiritZh_serial.txt       你的序號",
+                "     SpiritZh_activation.txt   啟用憑證(需啟用型的序號用)",
+                "     SpiritZh_guild.dat        小號沿用的帳號憑證",
+                "     SpiritZh_guilds.dat       公會白名單快取",
+                "   把它們放回 遊戲資料夾\\BepInEx\\plugins\\ 就好,不用重新跟作者要。"
             )
             Set-Content -LiteralPath (Join-Path $backup "這是什麼_請先讀我.txt") -Value $note -Encoding UTF8
         } catch {}
         # 設定檔(小,用複製):玩家的偏好都在這些檔裡;字典/名稱表是翻譯資料,重裝就有,不備份
+        # ★★ 授權檔【一定要備份】(2026-08-28 深度審查抓到):
+        #    serial/activation/guild.dat/guilds.dat/myid 全都在下面的「整包刪除」範圍內,
+        #    而它們是付費客戶花錢買到的東西 —— 序號沒了要回頭找作者、啟用憑證沒了要重新啟用。
+        #    而且安裝說明把「移除 → 重裝」列為除錯步驟,等於官方指引會銷毀客戶的授權。
         foreach ($cf in @("SpiritZh_view.txt", "SpiritZh_audio.txt", "SpiritZh_filter.txt",
                           "SpiritZh_beam.txt", "SpiritZh_gui.txt", "SpiritZh_keep.txt",
                           "SpiritZh_quality.txt", "SpiritZh_custom.txt", "SpiritZh_music.txt",
-                          "SpiritZh_cursor.txt", "SpiritZh_font.txt")) {
+                          "SpiritZh_cursor.txt", "SpiritZh_font.txt",
+                          "SpiritZh_bossalert.txt", "SpiritZh_fxskill.txt",   # v3.76.12 補:王技提示音 / 技能特效黑名單
+                          "SpiritZh_serial.txt", "SpiritZh_activation.txt",
+                          "SpiritZh_guild.dat", "SpiritZh_guilds.dat", "SpiritZh_myid.txt")) {
             $cp = Join-Path $pluginDir $cf
             if (Test-Path -LiteralPath $cp) { Copy-Item -LiteralPath $cp -Destination $backup -Force; $saved++ }
         }

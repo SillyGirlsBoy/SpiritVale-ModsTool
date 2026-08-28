@@ -250,7 +250,11 @@ $KeepCfg = @("SpiritZh_view.txt", "SpiritZh_audio.txt", "SpiritZh_filter.txt",
              # v3.72 補:游標設定漏了的話,玩家設好 128px 游標、下次按「更新翻譯」
              # 就會被 payload 的範本(enabled=0)蓋回去 —— 而且畫面上完全看不出來,
              # 正是上面那段註解在警告的同一種災情。
-             "SpiritZh_cursor.txt", "SpiritZh_font.txt")
+             "SpiritZh_cursor.txt", "SpiritZh_font.txt",
+             # v3.76.11 深度審查補:這兩個也是玩家自己調的,漏掉的話每次「更新翻譯」
+             # 都會被 payload 範本蓋掉 —— 王技提示音的整份設定、技能特效黑名單全部歸零,
+             # 而且畫面上完全看不出來。跟上面 v3.66 / v3.72 記取過的是同一種災情。
+             "SpiritZh_bossalert.txt", "SpiritZh_fxskill.txt")
 $SavedCfg = @{}
 foreach ($cf in $KeepCfg) {
     $cp = Join-Path $GamePath ("BepInEx\plugins\" + $cf)
@@ -307,7 +311,26 @@ foreach ($item in (Get-ChildItem -LiteralPath $Payload -Force)) {
 Log "  已複製 $copied 個項目到遊戲資料夾。"
 # 安裝包位置寫進遊戲端(v3.68):遊戲內按熱鍵(預設 F6)叫出設定工具要靠它找到本資料夾。
 # 放在複製【之後】—— 首次安裝時 BepInEx\plugins 是複製才生出來的。每次安裝都重寫,搬家後重裝即更新。
-try { Set-Content -LiteralPath (Join-Path $GamePath "BepInEx\plugins\SpiritZh_toolpath.txt") -Value $Here -Encoding UTF8 } catch {}
+# ★★ 從 %TEMP% 執行時【絕對不能】覆寫 toolpath(2026-08-27 無限鬼打牆事件的根因):
+#   自動更新是在 %TEMP%\SpiritZh_update_xxx\ 解壓後執行這支,此時 $Here 是那個【暫存夾】。
+#   寫進去的話,遊戲端記到的安裝包位置就是一個【隨時會被 Windows 清掉】的路徑,
+#   而使用者實際在開的還是原本那個資料夾 —— 於是工具永遠是舊版、每次都跳更新。
+#   從暫存夾跑時就保留原本的值(那才是使用者真正的安裝包)。
+try {
+    $tpFile = Join-Path $GamePath "BepInEx\plugins\SpiritZh_toolpath.txt"
+    $isTemp = $false
+    try {
+        $tmpRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+        $hereFull = [IO.Path]::GetFullPath($Here).TrimEnd('\')
+        if ($hereFull.StartsWith($tmpRoot, [StringComparison]::OrdinalIgnoreCase)) { $isTemp = $true }
+    } catch { }
+    if ($isTemp) {
+        Log "  [i] 從暫存資料夾執行(自動更新)—— 保留原本的安裝包位置紀錄,不覆寫。"
+        if (-not (Test-Path -LiteralPath $tpFile)) { Set-Content -LiteralPath $tpFile -Value $Here -Encoding UTF8 }
+    } else {
+        Set-Content -LiteralPath $tpFile -Value $Here -Encoding UTF8
+    }
+} catch {}
 if ($copied -eq 0) {
     Log ""
     Log "[錯誤] 一個檔案都沒複製成功!安裝未完成。"
@@ -331,9 +354,16 @@ if (Test-Path -LiteralPath $pluginDir) {
         Log "  中文字型:遊戲預設"
     }
     # 把玩家原本的設定放回去(payload 的預設值只用於「第一次安裝」)
+    # ★★ v3.76.11 深度審查 H5:這一輪【剛寫好的字型】不能被舊備份蓋回去。
+    #    SpiritZh_font.txt 在 $KeepCfg 裡,而字型是在這個迴圈【之前】寫入的(見上面),
+    #    所以舊版每次都把使用者剛選的新字型蓋掉 —— 換字型永遠無效,
+    #    偏偏 Log 還印「中文字型:xxx」說成功了,使用者完全無從得知。
+    $skipRestore = @()
+    if ($FontName -ne "") { $skipRestore += "SpiritZh_font.txt" }
     $restored = 0
     foreach ($cf in $KeepCfg) {
         if (-not $SavedCfg.ContainsKey($cf)) { continue }
+        if ($skipRestore -contains $cf) { Log "  (這次有指定字型,不還原舊的 $cf)"; continue }
         try { [System.IO.File]::WriteAllBytes((Join-Path $pluginDir $cf), $SavedCfg[$cf]); $restored++ } catch {}
     }
     if ($restored -gt 0) { Log "  已還原你原本的設定檔 $restored 個。" }

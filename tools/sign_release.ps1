@@ -79,6 +79,93 @@ if (Test-Path -LiteralPath $chgPath) {
     Write-Host ("   [!] 沒有 " + (Split-Path -Leaf $chgPath) + " —— 更新提示不會列出改了什麼") -ForegroundColor Yellow
 }
 
+# ── 公會白名單(v3.76.6)──
+#   讀 tools\公會名單.txt,算雜湊,【獨立簽一段】放進 version.json。
+#   ★ 為什麼要獨立簽:外掛端讀的是設定工具落下來的 SpiritZh_guilds.dat,
+#     那個檔離開 version.json 之後就沒有整包簽章保護了,所以它必須自己帶簽章。
+#   ★ 網域前綴 SVZH-GLD1:同一把金鑰已經在簽 version.json 與序號(SVZH-LIC1),
+#     沒有前綴的話三者可能互相冒用。
+#   payload = "SVZH-GLD1|<清單序號>|<簽發日 yyyyMMdd>|<雜湊:到期日,...>"
+$guildsPath = Join-Path $PSScriptRoot "公會名單.txt"
+$guildsSigned = ""
+if (Test-Path -LiteralPath $guildsPath) {
+    $gEntries = @()
+    $gNames   = @()
+    foreach ($ln in (Get-Content -LiteralPath $guildsPath -Encoding UTF8)) {
+        $t = $ln.Trim().TrimStart([char]0xFEFF)
+        if ($t.Length -eq 0 -or $t.StartsWith("//") -or $t.StartsWith("#")) { continue }
+        $eq = $t.IndexOf("=")
+        if ($eq -le 0) { Die ("公會名單.txt 這行看不懂(要 公會名=到期日):" + $t) }
+        $gName = $t.Substring(0, $eq).Trim()
+        $gExp  = $t.Substring($eq + 1).Trim()
+        if ($gName.Length -eq 0) { Die ("公會名單.txt 有一行公會名是空的:" + $t) }
+        # 到期日:0 = 永久;yyyy-MM-dd = 年費
+        if ($gExp -eq "0") { $gNum = "0" }
+        else {
+            $gd = [datetime]::MinValue
+            if (-not [datetime]::TryParseExact($gExp, "yyyy-MM-dd", [Globalization.CultureInfo]::InvariantCulture,
+                                               [Globalization.DateTimeStyles]::None, [ref]$gd)) {
+                Die ("公會「" + $gName + "」的到期日要是 0 或 yyyy-MM-dd,收到的是「" + $gExp + "」")
+            }
+            if ($gd.Date -lt (Get-Date).Date) {
+                Write-Host ("   [!] 公會「" + $gName + "」的到期日 " + $gExp + " 已經過去了 —— 簽出去等於沒有效果") -ForegroundColor Yellow
+            }
+            $gNum = $gd.ToString("yyyyMMdd")
+        }
+        # ★ 正規化必須跟外掛的 NormGuild 一模一樣:剝 <標籤> → NFKC → Trim → 小寫
+        $gNorm = ([regex]::Replace($gName, '<[^>]*>', '')).Normalize([Text.NormalizationForm]::FormKC).Trim().ToLowerInvariant()
+        if ($gNorm.Length -eq 0) { Die ("公會「" + $gName + "」剝掉 <...> 之後變成空的,不能簽") }
+        $gh = New-Object System.Security.Cryptography.SHA256Managed
+        try { $gHex = (($gh.ComputeHash([Text.Encoding]::UTF8.GetBytes($gNorm)) | ForEach-Object { $_.ToString("x2") }) -join "") }
+        finally { $gh.Dispose() }
+        if ($gNames -contains $gNorm) { Die ("公會名單.txt 裡「" + $gName + "」重複了") }
+        $gNames   += $gNorm
+        $gEntries += ($gHex + ":" + $gNum)
+    }
+    if ($gEntries.Count -gt 0) {
+        # 清單序號:用簽發日 + 當天序號,單調遞增,方便日後排查「他手上是哪一版」
+        $gSerial = (Get-Date -Format "yyyyMMddHHmm")
+    # ── 撤銷名單(v3.76.12)──
+    #   tools\撤銷序號.txt:一行一個【序號編號】(發序號時印出來的 8 碼,也記在 序號發放紀錄.txt 第 6 欄)。
+    #   # 開頭是註解。沒有這個檔就是「沒有撤銷任何東西」。
+    #   ★ 搭公會清單同一段簽章走,不新增任何通道;舊版外掛會直接忽略第 5 欄(向後相容)。
+    $revPath = Join-Path $PSScriptRoot "撤銷序號.txt"
+    $revIds = @()
+    if (Test-Path -LiteralPath $revPath) {
+        foreach ($ln in (Get-Content -LiteralPath $revPath -Encoding UTF8)) {
+            $s = $ln.Trim()
+            if ($s.Length -eq 0 -or $s.StartsWith("//") -or $s.StartsWith("#")) { continue }
+            # 只取編號本身(允許後面接空白+備註)
+            $id = ($s -split '\s+')[0].Trim()
+            if ($id -match '^[0-9a-fA-F]{4,32}$') { $revIds += $id.ToLowerInvariant() }
+        }
+        $revIds = @($revIds | Select-Object -Unique)
+        if ($revIds.Count -gt 0) { Ok ("撤銷名單 " + $revIds.Count + " 組序號") }
+    }
+    $gPayload = "SVZH-GLD1|" + $gSerial + "|" + (Get-Date -Format "yyyyMMdd" -ErrorAction SilentlyContinue) + "|" + ($gEntries -join ",") + "|" + ($revIds -join ",")
+        $gBytes = [Text.Encoding]::UTF8.GetBytes($gPayload)
+        $gRsa = [System.Security.Cryptography.RSA]::Create()
+        try {
+            $gRsa.FromXmlString((Get-Content -LiteralPath $PrivPath -Raw -Encoding UTF8))
+            $gSig = $gRsa.SignData($gBytes, [System.Security.Cryptography.HashAlgorithmName]::SHA256,
+                                   [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
+        } finally { $gRsa.Dispose() }
+        # 自我驗證:驗不過就不輸出(寧可不發,也不能發一份沒人驗得過的清單)
+        $gVer = [System.Security.Cryptography.RSA]::Create()
+        try {
+            $gVer.FromXmlString((Get-Content -LiteralPath $pubPath -Raw -Encoding UTF8))
+            $gOk = $gVer.VerifyData($gBytes, $gSig, [System.Security.Cryptography.HashAlgorithmName]::SHA256,
+                                    [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
+        } finally { $gVer.Dispose() }
+        if (-not $gOk) { Die "公會清單自我驗證沒過 —— 公私鑰可能不是同一對" }
+        function B64UrlG([byte[]]$x) { ([Convert]::ToBase64String($x)).TrimEnd('=').Replace('+','-').Replace('/','_') }
+        $guildsSigned = (B64UrlG $gBytes) + "." + (B64UrlG $gSig)
+        Ok ("公會清單 " + $gEntries.Count + " 個(已簽章,第 " + $gSerial + " 版)")
+    }
+} else {
+    Write-Host "   [!] 沒有 tools\公會名單.txt —— 這一版不帶外部公會清單(只有內建名單生效)" -ForegroundColor Yellow
+}
+
 $obj = [ordered]@{
     schema   = 1
     version  = $Version
@@ -86,6 +173,7 @@ $obj = [ordered]@{
     changes  = $changes
     notes    = "https://github.com/$Owner/$Repo/releases/tag/v$Version"
     min_tool = "3.76.4"
+    guilds   = $guildsSigned
     packages = $pkgs
 }
 $json = ($obj | ConvertTo-Json -Depth 6)

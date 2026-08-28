@@ -10,6 +10,17 @@ $ErrorActionPreference = "SilentlyContinue"
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms, System.Drawing
 
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
+# ★★ 我是不是【更新用的暫存副本】?(2026-08-27 鬼打牆事件的最後一塊)
+#   自動更新會把整包解到 %TEMP%\SpiritZh_update_xxx\,那裡面有一份可以雙擊的設定工具。
+#   從那裡開的話,它永遠停在「當時那一版」→ 每次開都比對到有新版 → 無限跳更新。
+#   實測源的機器上 %TEMP% 累積了 13 個舊暫存包,每一個都是潛在的鬼打牆來源。
+$script:IsTempCopy = $false
+try {
+    $tmpRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+    if ([IO.Path]::GetFullPath($Here).TrimEnd('\').StartsWith($tmpRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        $script:IsTempCopy = $true
+    }
+} catch { }
 
 function Get-DllVer([string]$path) {
     try {
@@ -22,7 +33,7 @@ function Get-DllVer([string]$path) {
     } catch { return $null }
 }
 $ToolVer = Get-DllVer (Join-Path $Here "payload\BepInEx\plugins\SpiritZh.dll")
-if (-not $ToolVer) { $ToolVer = "v3.76.5" }
+if (-not $ToolVer) { $ToolVer = "v3.76.12" }
 # ── 版本辨識(公會專用版 / 純翻譯包):讀 DLL 的 Comments = csproj <Description>(edition=guild / edition=pure)。
 #    跟 Get-DllVer 讀同一個 FileVersionInfo 物件,零成本;「決定功能開不開的 DLL」與「決定 UI 長怎樣的旗標」
 #    是同一個檔,打包時不可能湊錯(旗標檔 edition.txt 會有漏放/放錯/被手改的問題,不採用)。
@@ -2194,6 +2205,7 @@ function Refresh-Header {
     $window.Title = "SpiritVale 繁中化 設定工具 $ToolVer($edName)" + $(if ($gameVer) { "(遊戲內: $gameVer" + $(if ($gameVer -ne $ToolVer) { " ⚠未更新)" } else { ")" }) } else { "" }) + "  by 源"
     $LblVer.Text = $(if (-not $script:GamePath) { "尚未找到遊戲資料夾" }
                      elseif (-not $gameVer) { "尚未安裝翻譯 —— 請到「$tabName」按「安裝 / 更新翻譯」" }
+                     elseif ($gameEd -eq "guild" -and $ToolEdition -ne "guild") { "⚠ 遊戲內是【公會專用版】,這個安裝包是【純翻譯包】—— 不要按安裝,那會關掉你的付費功能" }
                      elseif ($gameVer -ne $ToolVer) { "遊戲內是 $gameVer,安裝包是 $ToolVer —— 按「安裝 / 更新翻譯」升級" }
                      elseif ($gameEd -and $gameEd -ne $ToolEdition) { "遊戲內裝的是「" + (Edition-Name $gameEd) + "」,這個安裝包是「$edName」—— 按「安裝 / 更新翻譯」換過來" }
                      else { "已安裝翻譯($gameVer,$edName),版本一致" })
@@ -2204,9 +2216,13 @@ function Refresh-Header {
 #   使用者按了最大那顆按鈕卻覺得「什麼都沒發生」—— 最傷信任的體驗。
 #   改成【按下去之前就講】:條件不成立時按鈕變灰 + 滑鼠提示說明原因。
 function Update-ApplyEnabled {
+    # ★★ v3.76.12:這裡本來是【裸 elseif】(前面沒有 if)——
+    #   PowerShell 把 elseif 當成指令名,執行期直接丟 CommandNotFoundException,
+    #   函式在第一行就中止 → 下面的 BtnApply.IsEnabled / ToolTip 從來沒有執行過,
+    #   也就是說「按鈕變灰 + 提示原因」這個功能【從上線以來都是壞的】。
+    #   而 PowerShell 的 Parser 不會把它判成語法錯誤,所以語法檢查一路綠燈,查不出來。
     $why = ""
-
-    elseif (-not $script:GamePath) { $why = "還沒找到遊戲資料夾 —— 請先按上方的「瀏覽」。" }
+    if (-not $script:GamePath) { $why = "還沒找到遊戲資料夾 —— 請先按上方的「瀏覽」。" }
     elseif (-not (Test-Path -LiteralPath (PluginDir))) { $why = "還沒安裝翻譯 —— 請先按「安裝 / 更新翻譯」。設定要有地方寫才存得起來。" }
     try {
         $BtnApply.IsEnabled = ($why -eq "")
@@ -2482,7 +2498,7 @@ $BtnCurPick.Add_Click({
         CurUpdatePreview
     } catch { Show-Msg "複製失敗" ("沒辦法把圖片複製到 SpiritZh_ui:`n" + $_.Exception.Message) "error" }
 })
-
+
 # ══════════════════════════════════════════════════════════════════════
 #  王技提示音(SpiritZh_bossalert.txt)—— v3.73
 # ══════════════════════════════════════════════════════════════════════
@@ -2565,25 +2581,25 @@ function Refresh-BaList {
     }
     $LblBaEmpty.Visibility = $(if ($script:baRules.Count -eq 0) { "Visible" } else { "Collapsed" })
 }
-# ══ 職業技能資料(來源:靈谷資料庫 spiritvale-zhtw.pages.dev 的技能樹 + 遊戲本地化表 skill.<Id>.name 對 id;15 職業 / 256 技能)══
-# 用途:技能特效黑名單的「從技能清單挑」對話框。i = 外掛要的技能 id,z = 中文,e = 英文顯示名。
-$script:SKILL_DB = @(
-  @{zh='侍僧';en='Acolyte';base=$true;sk=@(@{i='Heal';z='治療術';e='Heal'},@{i='CodexMastery';z='典籍精通';e='Codex Mastery'},@{i='IncreasedManaRegen';z='恢復提升';e='Increased Recovery'},@{i='Haste';z='加速';e='Haste'},@{i='Blessing';z='祝禱';e='Benediction'},@{i='HolyLight';z='聖光';e='Holy Light'},@{i='Grace';z='神聖恩典';e='Divine Grace'},@{i='Barrier';z='聖盾';e='Sacred Aegis'},@{i='Cure';z='治癒術';e='Cure'},@{i='TrueSight';z='真視';e='True Sight'},@{i='SpellShield';z='法術結界';e='Arcanum Ward'},@{i='Faith';z='信仰';e='Faith'},@{i='Revive';z='復活';e='Resurrection'})}
-  @{zh='騎士';en='Knight';base=$true;sk=@(@{i='Taunt';z='嘲諷';e='Taunt'},@{i='SpearMastery';z='槍術精通';e='Spear Mastery'},@{i='ShieldMastery';z='盾術精通';e='Shield Mastery'},@{i='Endure';z='堅忍';e='Endure'},@{i='SpearThrust';z='穿刺連擊';e='Piercing Flurry'},@{i='Fortify';z='強化壁壘';e='Fortify'},@{i='TwohandParry';z='雙手格擋';e='Twohand Parry'},@{i='SpearStab';z='穿刺';e='Impale'},@{i='ReflectShield';z='反射護盾';e='Reflect Shield'},@{i='IncreasedHealthRegen';z='活力再生';e='Increased Regeneration'},@{i='SpearSlice';z='空氣斬';e='Air Cutter'},@{i='SpearQuicken';z='槍術加速';e='Spear Quicken'},@{i='WeaponThrow';z='擲武器';e='Weapon Throw'},@{i='Counter';z='反擊架式';e='Counter Stance'})}
-  @{zh='法師';en='Mage';base=$true;sk=@(@{i='WandMastery';z='杖術精通';e='Wand Mastery'},@{i='Earthbolt';z='石箭術';e='Earthbolt'},@{i='Firebolt';z='火箭術';e='Firebolt'},@{i='IncreasedManaRegen';z='恢復提升';e='Increased Recovery'},@{i='Thunderbolt';z='落雷';e='Thunderbolt'},@{i='Icebolt';z='冰箭術';e='Icebolt'},@{i='EarthSpikes';z='大地尖刺';e='Earth Spikes'},@{i='Fireball';z='火球術';e='Fireball'},@{i='TrueSight';z='真視';e='True Sight'},@{i='ThunderStorm';z='雷暴';e='Thunder Storm'},@{i='IceShard';z='冰晶';e='Ice Shard'},@{i='EnergyShield';z='能量護盾';e='Energy Shield'},@{i='FreeCast';z='自由施法';e='Free Cast'},@{i='Blink';z='閃現';e='Blink'})}
-  @{zh='盜賊';en='Rogue';base=$true;sk=@(@{i='BladeMastery';z='劍術精通';e='Blade Mastery'},@{i='ShadowStep';z='暗影步';e='Shadow Step'},@{i='Multistrike';z='多重打擊';e='Multistrike'},@{i='VenomStrike';z='毒液打擊';e='Venom Strike'},@{i='Cloaking';z='隱形';e='Cloaking'},@{i='LightningReflexes';z='閃電反射';e='Lightning Reflexes'},@{i='VenomCoating';z='毒液塗層';e='Venom Coating'},@{i='BladeDance';z='劍舞';e='Blade Dance'},@{i='DualWieldMastery';z='雙持精通';e='Dual Wield Mastery'},@{i='EnchantPoison';z='附魔·劇毒';e='Enchant Poison'},@{i='SmokeScreen';z='煙幕';e='Smoke Screen'},@{i='Haste';z='加速';e='Haste'},@{i='Cure';z='治癒術';e='Cure'})}
-  @{zh='斥候';en='Scout';base=$true;sk=@(@{i='SteadyHands';z='穩定之手';e='Steady Hands'},@{i='StrafingVolley';z='掃射齊發';e='Strafing Volley'},@{i='PreciseAim';z='精準瞄準';e='Precise Aim'},@{i='ArrowShower';z='箭雨';e='Arrow Shower'},@{i='ForceShot';z='強力射擊';e='Force Shot'},@{i='Marked';z='標記目標';e='Mark Target'},@{i='Agility';z='專注';e='Inner Focus'},@{i='SlowTrap';z='緩速陷阱';e='Slow Trap'},@{i='VolatileBolt';z='不穩定彈';e='Volatile Bolt'},@{i='SniperNest';z='狙擊點';e='Sniper''s Nest'})}
-  @{zh='召喚師';en='Summoner';base=$true;sk=@(@{i='SummonAngel';z='召喚天使';e='Summon Angel'},@{i='SummonCactus';z='召喚仙人掌';e='Summon Cactus'},@{i='SummonMastery';z='召喚精通';e='Summon Mastery'},@{i='SummonCat';z='召喚貓';e='Summon Cat'},@{i='SummonWolf';z='召喚狼';e='Summon Wolf'},@{i='FieldHealing';z='共鳴之井';e='Resonance Well'},@{i='FieldSilence';z='壓制領域';e='Suppression Field'},@{i='SoulStrike';z='靈魂打擊';e='Soul Strike'},@{i='FieldCurse';z='放逐領域';e='Banishment Field'},@{i='FieldDamage';z='失諧之井';e='Dissonance Well'},@{i='Conjurer';z='召喚羈絆';e='Conjurer'},@{i='GuardianBond';z='守護連結';e='Guardian Bond'},@{i='TrueSight';z='真視';e='True Sight'},@{i='FuryBond';z='盛怒連結';e='Fury Bond'},@{i='Invoker';z='召喚覺醒';e='Invoker'},@{i='SummonAttack';z='召喚指令';e='Summon Command'},@{i='SummonRecall';z='召喚回收';e='Summon Recall'},@{i='SummonSwap';z='召喚切換';e='Summon Swap'},@{i='SummonMount';z='召喚坐騎';e='Summon Mount'})}
-  @{zh='戰士';en='Warrior';base=$true;sk=@(@{i='AxeMastery';z='斧術精通';e='Axe Mastery'},@{i='Bash';z='猛擊';e='Bash'},@{i='Stomp';z='踐踏';e='Stomp'},@{i='AxeArc';z='雙重劈砍';e='Twin Cleave'},@{i='AxeVortex';z='漩渦斬';e='Vortex Slash'},@{i='Whirlwind';z='旋風斬';e='Whirlwind'},@{i='CritMastery';z='磨礪之刃';e='Honed Blade'},@{i='DualWieldMastery';z='雙持精通';e='Dual Wield Mastery'},@{i='ResistanceMastery';z='自然抗性';e='Natural Resistance'})}
-  @{zh='狂戰士';en='Berserker';base=$false;sk=@(@{i='ShoutMight';z='強力咆哮';e='Mighty Roar'},@{i='GroundSlam';z='裂地';e='Earth Splitter'},@{i='DarkClaw';z='暗爪';e='Dark Claw'},@{i='WildCharge';z='狂野衝鋒';e='Wild Charge'},@{i='ShoutBlood';z='血嚎';e='Blood Howl'},@{i='ShoutFury';z='狂怒吼叫';e='Furious Shout'},@{i='Execute';z='處決';e='Execute'},@{i='RageMastery';z='殘暴';e='Brutality'},@{i='Cyclone';z='氣旋';e='Cyclone'},@{i='ShoutStun';z='威嚇怒吼';e='Fearsome Cry'},@{i='Berserk';z='狂暴';e='Berserk'},@{i='AxeThrow';z='擲斧';e='Axe Throw'},@{i='BloodFrenzy';z='嗜血狂暴';e='Blood Frenzy'},@{i='IncreasedHealthRegen';z='活力再生';e='Increased Regeneration'},@{i='BloodCrash';z='活力怒爆';e='Blood Crash'},@{i='Unyielding';z='不屈';e='Unyielding'})}
-  @{zh='神槍手';en='Gunslinger';base=$false;sk=@(@{i='SuppressiveShot';z='壓制連射';e='Suppressive Shot'},@{i='PiercingShot';z='穿刺射擊';e='Piercing Shot'},@{i='FanFire';z='扇形射擊';e='Fan Fire'},@{i='ShrapnelShot';z='破片';e='Shrapnel'},@{i='ExplosiveGrenade';z='爆裂手榴彈';e='Explosive Grenade'},@{i='PoisonGrenade';z='毒氣手榴彈';e='Poison Grenade'},@{i='SniperShot';z='狙擊射擊';e='Sniper Shot'},@{i='PanicBurst';z='恐慌爆發';e='Panic Burst'},@{i='GunMastery';z='槍械精通';e='Gun Mastery'},@{i='PointBlankShot';z='近距射擊';e='Point Blank'},@{i='FreezeGrenade';z='冰凍手榴彈';e='Freeze Grenade'},@{i='AerialShot';z='浮空射擊';e='Aerial Shot'},@{i='FlashBang';z='閃光彈';e='Flash Bang'},@{i='JumpShot';z='跳躍射擊';e='Jump Shot'},@{i='TriggerHappy';z='連射狂熱';e='Trigger Happy'},@{i='Lockdown';z='封鎖';e='Lockdown'},@{i='WeaponSwap';z='雙重配置';e='Dual Loadout'})}
-  @{zh='死靈法師';en='Necromancer';base=$false;sk=@(@{i='SummonAbomination';z='召喚憎惡';e='Summon Abomination'},@{i='SummonSkeleton';z='召喚骷髏';e='Summon Skeleton'},@{i='SkeletonMastery';z='骷髏精通';e='Skeleton Mastery'},@{i='SummonSkeletonMage';z='召喚骷髏法師';e='Summon Skeleton Mage'},@{i='SummonWraith';z='召喚幽魂';e='Summon Wraith'},@{i='BoneSpear';z='骨矛';e='Bone Spear'},@{i='CorpseBarrier';z='屍體屏障';e='Corpse Barrier'},@{i='ScytheMastery';z='鐮術精通';e='Scythe Mastery'},@{i='BoneSpikes';z='骨刺';e='Bone Spikes'},@{i='DeathCoil';z='死亡纏繞';e='Death Coil'},@{i='CorpseExplosion';z='屍體爆炸';e='Corpse Explosion'},@{i='Harvest';z='躍動收割';e='Harvest'},@{i='TwohandParry';z='雙手格擋';e='Twohand Parry'},@{i='Reanimation';z='復生';e='Reanimation'},@{i='LifeDrain';z='生命汲取';e='Life Drain'},@{i='DeathBond';z='死亡連結';e='Death Bond'},@{i='Reap';z='鐮割';e='Reap'},@{i='SummonReanimation';z='召喚復生體';e='Summon Reanimation'},@{i='DeathNova';z='死亡新星';e='Death Nova'},@{i='DeathSpiral';z='死亡螺旋';e='Death Spiral'},@{i='DeathBramble';z='腐屍氣場';e='Necrotic Presence'},@{i='GraveChill';z='墓寒';e='Grave Chill'},@{i='SoulDrain';z='靈魂汲取';e='Soul Drain'})}
-  @{zh='聖騎士';en='Paladin';base=$false;sk=@(@{i='HighGuard';z='高階格擋';e='High Guard'},@{i='HolyShield';z='神聖護盾';e='Holy Shield'},@{i='Faith';z='信仰';e='Faith'},@{i='Sacrifice';z='獻祭';e='Sacrifice'},@{i='Consecration';z='祝聖';e='Consecration'},@{i='Aegis';z='光之神盾';e='Aegis of Light'},@{i='ShieldBash';z='盾擊';e='Shield Bash'},@{i='EnchantArmorHoly';z='祝聖';e='Sanctify'},@{i='JudgementBlade';z='審判之刃';e='Judgement Blade'},@{i='DivinePunishment';z='神罰';e='Divine Punishment'},@{i='ShieldThrow';z='擲盾';e='Shield Throw'},@{i='LifeBond';z='生命連結';e='Life Bond'},@{i='GrandCross';z='聖十字';e='Grand Cross'},@{i='Defiance';z='反抗光環';e='Defiance Aura'},@{i='Vitality';z='活力光環';e='Vitality Aura'},@{i='Conviction';z='堅信光環';e='Conviction Aura'},@{i='MountMastery';z='獅鷲騎乘';e='Gryphon Riding'})}
-  @{zh='牧師';en='Priest';base=$false;sk=@(@{i='HighHeal';z='高階治療術';e='High Heal'},@{i='ReviveAll';z='救贖';e='Salvation'},@{i='MaceMastery';z='錘術精通';e='Mace Mastery'},@{i='Sanctuary';z='聖域';e='Sanctuary'},@{i='StatusRecovery';z='狀態恢復';e='Status Recovery'},@{i='TurnUndead';z='驅逐不死';e='Turn Undead'},@{i='Zeal';z='熱忱';e='Zeal'},@{i='Damnation';z='天譴';e='Damnation'},@{i='SacredGround';z='聖地';e='Sacred Ground'},@{i='GuardianSpirit';z='守護靈';e='Guardian Spirit'},@{i='Exorcism';z='驅魔';e='Exorcism'},@{i='EndowHoly';z='賦予神聖';e='Endow Holy'},@{i='Smite';z='制裁';e='Smite'},@{i='Divinity';z='神性';e='Divinity'},@{i='Sacrament';z='聖禮';e='Sacrament'},@{i='Fanaticism';z='狂熱';e='Fanaticism'},@{i='HolyWrath';z='神聖之怒';e='Holy Wrath'},@{i='Dispell';z='赦罪';e='Absolution'})}
-  @{zh='忍者';en='Shinobi';base=$false;sk=@(@{i='FlameOrb';z='火焰球';e='Flame Orb'},@{i='FrostBlade';z='螺旋束縛';e='Binding Spiral'},@{i='LightningStrike';z='瞬步';e='Flash Step'},@{i='FireRelease';z='火遁';e='Fire Release'},@{i='IceRelease';z='冰遁';e='Ice Release'},@{i='LightningRelease';z='雷遁';e='Lightning Release'},@{i='FlowState';z='心流狀態';e='Flow State'},@{i='NinjutsuMastery';z='忍術精通';e='Ninjutsu Mastery'},@{i='ShadowSeal';z='暗影印記';e='Shadow Seal'},@{i='ShadowMastery';z='暗影精通';e='Shadow Mastery'},@{i='SilentEdge';z='無聲之刃';e='Silent Edge'},@{i='FanOfKnives';z='刀扇';e='Fan Of Knives'},@{i='ShadowFeint';z='迷蹤佯攻';e='Elusive Feint'},@{i='TwistOfFate';z='命運扭轉';e='Twist Of Fate'},@{i='ShurikenFan';z='萬旋手裏劍';e='Shuriken Fan'},@{i='MimicSeal';z='擬態印記';e='Mimic Seal'},@{i='ShadowRelease';z='黑刃';e='Black Blade'})}
-  @{zh='織者';en='Weaver';base=$false;sk=@(@{i='Heal';z='治療術';e='Heal'},@{i='Icebolt';z='冰箭術';e='Icebolt'},@{i='Firebolt';z='火箭術';e='Firebolt'},@{i='WeaverMastery';z='織者精通';e='Weaver Mastery'},@{i='SpearThrust';z='穿刺連擊';e='Piercing Flurry'},@{i='StrafingVolley';z='掃射齊發';e='Strafing Volley'},@{i='VenomStrike';z='毒液打擊';e='Venom Strike'},@{i='Haste';z='加速';e='Haste'},@{i='IceShard';z='冰晶';e='Ice Shard'},@{i='Fireball';z='火球術';e='Fireball'},@{i='Bash';z='猛擊';e='Bash'},@{i='SpearStab';z='穿刺';e='Impale'},@{i='ArrowShower';z='箭雨';e='Arrow Shower'},@{i='VenomCoating';z='毒液塗層';e='Venom Coating'},@{i='Cure';z='治癒術';e='Cure'},@{i='Earthbolt';z='石箭術';e='Earthbolt'},@{i='Thunderbolt';z='落雷';e='Thunderbolt'},@{i='Endure';z='堅忍';e='Endure'},@{i='SpearSlice';z='空氣斬';e='Air Cutter'},@{i='BladeDance';z='劍舞';e='Blade Dance'},@{i='ShadowStep';z='暗影步';e='Shadow Step'},@{i='HolyLight';z='聖光';e='Holy Light'},@{i='EarthSpikes';z='大地尖刺';e='Earth Spikes'},@{i='ThunderStorm';z='雷暴';e='Thunder Storm'},@{i='Fortify';z='強化壁壘';e='Fortify'},@{i='Stomp';z='踐踏';e='Stomp'},@{i='Marked';z='標記目標';e='Mark Target'},@{i='Cloaking';z='隱形';e='Cloaking'},@{i='SoulStrike';z='靈魂打擊';e='Soul Strike'},@{i='FieldSilence';z='壓制領域';e='Suppression Field'},@{i='FieldCurse';z='放逐領域';e='Banishment Field'},@{i='ResistanceMastery';z='自然抗性';e='Natural Resistance'},@{i='AxeVortex';z='漩渦斬';e='Vortex Slash'},@{i='SteadyHands';z='穩定之手';e='Steady Hands'},@{i='LightningReflexes';z='閃電反射';e='Lightning Reflexes'},@{i='Blessing';z='祝禱';e='Benediction'},@{i='FieldHealing';z='共鳴之井';e='Resonance Well'},@{i='FieldDamage';z='失諧之井';e='Dissonance Well'},@{i='Grace';z='神聖恩典';e='Divine Grace'},@{i='Whirlwind';z='旋風斬';e='Whirlwind'},@{i='Agility';z='專注';e='Inner Focus'},@{i='DualWieldMastery';z='雙持精通';e='Dual Wield Mastery'})}
-  @{zh='巫師';en='Wizard';base=$false;sk=@(@{i='FirePillar';z='火柱';e='Fire Pillar'},@{i='FireBarrier';z='火焰化身';e='Avatar of Fire'},@{i='ChainLightning';z='連鎖閃電';e='Chain Lightning'},@{i='Meteor';z='隕石';e='Meteor'},@{i='Tempest';z='怒雷風暴';e='Tempest'},@{i='EarthBarrier';z='岩石化身';e='Avatar of Stone'},@{i='TetraVortex';z='元素爆發';e='Elemental Overload'},@{i='WindBarrier';z='風暴化身';e='Avatar of Storm'},@{i='Earthquake';z='地震術';e='Earthquake'},@{i='FreezingField';z='暴風雪';e='Blizzard'},@{i='EarthWall';z='土牆';e='Earth Wall'},@{i='WaterBarrier';z='寒霜化身';e='Avatar of Frost'},@{i='HydroVortex';z='水龍捲';e='Hydro Vortex'},@{i='ArcaneSigil';z='奧術符印';e='Arcane Sigil'})}
-)
+# ══ 職業技能資料(來源:靈谷資料庫 spiritvale-zhtw.pages.dev 的技能樹 + 遊戲本地化表 skill.<Id>.name 對 id;15 職業 / 256 技能)══
+# 用途:技能特效黑名單的「從技能清單挑」對話框。i = 外掛要的技能 id,z = 中文,e = 英文顯示名。
+$script:SKILL_DB = @(
+  @{zh='侍僧';en='Acolyte';base=$true;sk=@(@{i='Heal';z='治療術';e='Heal'},@{i='CodexMastery';z='典籍精通';e='Codex Mastery'},@{i='IncreasedManaRegen';z='恢復提升';e='Increased Recovery'},@{i='Haste';z='加速';e='Haste'},@{i='Blessing';z='祝禱';e='Benediction'},@{i='HolyLight';z='聖光';e='Holy Light'},@{i='Grace';z='神聖恩典';e='Divine Grace'},@{i='Barrier';z='聖盾';e='Sacred Aegis'},@{i='Cure';z='治癒術';e='Cure'},@{i='TrueSight';z='真視';e='True Sight'},@{i='SpellShield';z='法術結界';e='Arcanum Ward'},@{i='Faith';z='信仰';e='Faith'},@{i='Revive';z='復活';e='Resurrection'})}
+  @{zh='騎士';en='Knight';base=$true;sk=@(@{i='Taunt';z='嘲諷';e='Taunt'},@{i='SpearMastery';z='槍術精通';e='Spear Mastery'},@{i='ShieldMastery';z='盾術精通';e='Shield Mastery'},@{i='Endure';z='堅忍';e='Endure'},@{i='SpearThrust';z='穿刺連擊';e='Piercing Flurry'},@{i='Fortify';z='強化壁壘';e='Fortify'},@{i='TwohandParry';z='雙手格擋';e='Twohand Parry'},@{i='SpearStab';z='穿刺';e='Impale'},@{i='ReflectShield';z='反射護盾';e='Reflect Shield'},@{i='IncreasedHealthRegen';z='活力再生';e='Increased Regeneration'},@{i='SpearSlice';z='空氣斬';e='Air Cutter'},@{i='SpearQuicken';z='槍術加速';e='Spear Quicken'},@{i='WeaponThrow';z='擲武器';e='Weapon Throw'},@{i='Counter';z='反擊架式';e='Counter Stance'})}
+  @{zh='法師';en='Mage';base=$true;sk=@(@{i='WandMastery';z='杖術精通';e='Wand Mastery'},@{i='Earthbolt';z='石箭術';e='Earthbolt'},@{i='Firebolt';z='火箭術';e='Firebolt'},@{i='IncreasedManaRegen';z='恢復提升';e='Increased Recovery'},@{i='Thunderbolt';z='落雷';e='Thunderbolt'},@{i='Icebolt';z='冰箭術';e='Icebolt'},@{i='EarthSpikes';z='大地尖刺';e='Earth Spikes'},@{i='Fireball';z='火球術';e='Fireball'},@{i='TrueSight';z='真視';e='True Sight'},@{i='ThunderStorm';z='雷暴';e='Thunder Storm'},@{i='IceShard';z='冰晶';e='Ice Shard'},@{i='EnergyShield';z='能量護盾';e='Energy Shield'},@{i='FreeCast';z='自由施法';e='Free Cast'},@{i='Blink';z='閃現';e='Blink'})}
+  @{zh='盜賊';en='Rogue';base=$true;sk=@(@{i='BladeMastery';z='劍術精通';e='Blade Mastery'},@{i='ShadowStep';z='暗影步';e='Shadow Step'},@{i='Multistrike';z='多重打擊';e='Multistrike'},@{i='VenomStrike';z='毒液打擊';e='Venom Strike'},@{i='Cloaking';z='隱形';e='Cloaking'},@{i='LightningReflexes';z='閃電反射';e='Lightning Reflexes'},@{i='VenomCoating';z='毒液塗層';e='Venom Coating'},@{i='BladeDance';z='劍舞';e='Blade Dance'},@{i='DualWieldMastery';z='雙持精通';e='Dual Wield Mastery'},@{i='EnchantPoison';z='附魔·劇毒';e='Enchant Poison'},@{i='SmokeScreen';z='煙幕';e='Smoke Screen'},@{i='Haste';z='加速';e='Haste'},@{i='Cure';z='治癒術';e='Cure'})}
+  @{zh='斥候';en='Scout';base=$true;sk=@(@{i='SteadyHands';z='穩定之手';e='Steady Hands'},@{i='StrafingVolley';z='掃射齊發';e='Strafing Volley'},@{i='PreciseAim';z='精準瞄準';e='Precise Aim'},@{i='ArrowShower';z='箭雨';e='Arrow Shower'},@{i='ForceShot';z='強力射擊';e='Force Shot'},@{i='Marked';z='標記目標';e='Mark Target'},@{i='Agility';z='專注';e='Inner Focus'},@{i='SlowTrap';z='緩速陷阱';e='Slow Trap'},@{i='VolatileBolt';z='不穩定彈';e='Volatile Bolt'},@{i='SniperNest';z='狙擊點';e='Sniper''s Nest'})}
+  @{zh='召喚師';en='Summoner';base=$true;sk=@(@{i='SummonAngel';z='召喚天使';e='Summon Angel'},@{i='SummonCactus';z='召喚仙人掌';e='Summon Cactus'},@{i='SummonMastery';z='召喚精通';e='Summon Mastery'},@{i='SummonCat';z='召喚貓';e='Summon Cat'},@{i='SummonWolf';z='召喚狼';e='Summon Wolf'},@{i='FieldHealing';z='共鳴之井';e='Resonance Well'},@{i='FieldSilence';z='壓制領域';e='Suppression Field'},@{i='SoulStrike';z='靈魂打擊';e='Soul Strike'},@{i='FieldCurse';z='放逐領域';e='Banishment Field'},@{i='FieldDamage';z='失諧之井';e='Dissonance Well'},@{i='Conjurer';z='召喚羈絆';e='Conjurer'},@{i='GuardianBond';z='守護連結';e='Guardian Bond'},@{i='TrueSight';z='真視';e='True Sight'},@{i='FuryBond';z='盛怒連結';e='Fury Bond'},@{i='Invoker';z='召喚覺醒';e='Invoker'},@{i='SummonAttack';z='召喚指令';e='Summon Command'},@{i='SummonRecall';z='召喚回收';e='Summon Recall'},@{i='SummonSwap';z='召喚切換';e='Summon Swap'},@{i='SummonMount';z='召喚坐騎';e='Summon Mount'})}
+  @{zh='戰士';en='Warrior';base=$true;sk=@(@{i='AxeMastery';z='斧術精通';e='Axe Mastery'},@{i='Bash';z='猛擊';e='Bash'},@{i='Stomp';z='踐踏';e='Stomp'},@{i='AxeArc';z='雙重劈砍';e='Twin Cleave'},@{i='AxeVortex';z='漩渦斬';e='Vortex Slash'},@{i='Whirlwind';z='旋風斬';e='Whirlwind'},@{i='CritMastery';z='磨礪之刃';e='Honed Blade'},@{i='DualWieldMastery';z='雙持精通';e='Dual Wield Mastery'},@{i='ResistanceMastery';z='自然抗性';e='Natural Resistance'})}
+  @{zh='狂戰士';en='Berserker';base=$false;sk=@(@{i='ShoutMight';z='強力咆哮';e='Mighty Roar'},@{i='GroundSlam';z='裂地';e='Earth Splitter'},@{i='DarkClaw';z='暗爪';e='Dark Claw'},@{i='WildCharge';z='狂野衝鋒';e='Wild Charge'},@{i='ShoutBlood';z='血嚎';e='Blood Howl'},@{i='ShoutFury';z='狂怒吼叫';e='Furious Shout'},@{i='Execute';z='處決';e='Execute'},@{i='RageMastery';z='殘暴';e='Brutality'},@{i='Cyclone';z='氣旋';e='Cyclone'},@{i='ShoutStun';z='威嚇怒吼';e='Fearsome Cry'},@{i='Berserk';z='狂暴';e='Berserk'},@{i='AxeThrow';z='擲斧';e='Axe Throw'},@{i='BloodFrenzy';z='嗜血狂暴';e='Blood Frenzy'},@{i='IncreasedHealthRegen';z='活力再生';e='Increased Regeneration'},@{i='BloodCrash';z='活力怒爆';e='Blood Crash'},@{i='Unyielding';z='不屈';e='Unyielding'})}
+  @{zh='神槍手';en='Gunslinger';base=$false;sk=@(@{i='SuppressiveShot';z='壓制連射';e='Suppressive Shot'},@{i='PiercingShot';z='穿刺射擊';e='Piercing Shot'},@{i='FanFire';z='扇形射擊';e='Fan Fire'},@{i='ShrapnelShot';z='破片';e='Shrapnel'},@{i='ExplosiveGrenade';z='爆裂手榴彈';e='Explosive Grenade'},@{i='PoisonGrenade';z='毒氣手榴彈';e='Poison Grenade'},@{i='SniperShot';z='狙擊射擊';e='Sniper Shot'},@{i='PanicBurst';z='恐慌爆發';e='Panic Burst'},@{i='GunMastery';z='槍械精通';e='Gun Mastery'},@{i='PointBlankShot';z='近距射擊';e='Point Blank'},@{i='FreezeGrenade';z='冰凍手榴彈';e='Freeze Grenade'},@{i='AerialShot';z='浮空射擊';e='Aerial Shot'},@{i='FlashBang';z='閃光彈';e='Flash Bang'},@{i='JumpShot';z='跳躍射擊';e='Jump Shot'},@{i='TriggerHappy';z='連射狂熱';e='Trigger Happy'},@{i='Lockdown';z='封鎖';e='Lockdown'},@{i='WeaponSwap';z='雙重配置';e='Dual Loadout'})}
+  @{zh='死靈法師';en='Necromancer';base=$false;sk=@(@{i='SummonAbomination';z='召喚憎惡';e='Summon Abomination'},@{i='SummonSkeleton';z='召喚骷髏';e='Summon Skeleton'},@{i='SkeletonMastery';z='骷髏精通';e='Skeleton Mastery'},@{i='SummonSkeletonMage';z='召喚骷髏法師';e='Summon Skeleton Mage'},@{i='SummonWraith';z='召喚幽魂';e='Summon Wraith'},@{i='BoneSpear';z='骨矛';e='Bone Spear'},@{i='CorpseBarrier';z='屍體屏障';e='Corpse Barrier'},@{i='ScytheMastery';z='鐮術精通';e='Scythe Mastery'},@{i='BoneSpikes';z='骨刺';e='Bone Spikes'},@{i='DeathCoil';z='死亡纏繞';e='Death Coil'},@{i='CorpseExplosion';z='屍體爆炸';e='Corpse Explosion'},@{i='Harvest';z='躍動收割';e='Harvest'},@{i='TwohandParry';z='雙手格擋';e='Twohand Parry'},@{i='Reanimation';z='復生';e='Reanimation'},@{i='LifeDrain';z='生命汲取';e='Life Drain'},@{i='DeathBond';z='死亡連結';e='Death Bond'},@{i='Reap';z='鐮割';e='Reap'},@{i='SummonReanimation';z='召喚復生體';e='Summon Reanimation'},@{i='DeathNova';z='死亡新星';e='Death Nova'},@{i='DeathSpiral';z='死亡螺旋';e='Death Spiral'},@{i='DeathBramble';z='腐屍氣場';e='Necrotic Presence'},@{i='GraveChill';z='墓寒';e='Grave Chill'},@{i='SoulDrain';z='靈魂汲取';e='Soul Drain'})}
+  @{zh='聖騎士';en='Paladin';base=$false;sk=@(@{i='HighGuard';z='高階格擋';e='High Guard'},@{i='HolyShield';z='神聖護盾';e='Holy Shield'},@{i='Faith';z='信仰';e='Faith'},@{i='Sacrifice';z='獻祭';e='Sacrifice'},@{i='Consecration';z='祝聖';e='Consecration'},@{i='Aegis';z='光之神盾';e='Aegis of Light'},@{i='ShieldBash';z='盾擊';e='Shield Bash'},@{i='EnchantArmorHoly';z='祝聖';e='Sanctify'},@{i='JudgementBlade';z='審判之刃';e='Judgement Blade'},@{i='DivinePunishment';z='神罰';e='Divine Punishment'},@{i='ShieldThrow';z='擲盾';e='Shield Throw'},@{i='LifeBond';z='生命連結';e='Life Bond'},@{i='GrandCross';z='聖十字';e='Grand Cross'},@{i='Defiance';z='反抗光環';e='Defiance Aura'},@{i='Vitality';z='活力光環';e='Vitality Aura'},@{i='Conviction';z='堅信光環';e='Conviction Aura'},@{i='MountMastery';z='獅鷲騎乘';e='Gryphon Riding'})}
+  @{zh='牧師';en='Priest';base=$false;sk=@(@{i='HighHeal';z='高階治療術';e='High Heal'},@{i='ReviveAll';z='救贖';e='Salvation'},@{i='MaceMastery';z='錘術精通';e='Mace Mastery'},@{i='Sanctuary';z='聖域';e='Sanctuary'},@{i='StatusRecovery';z='狀態恢復';e='Status Recovery'},@{i='TurnUndead';z='驅逐不死';e='Turn Undead'},@{i='Zeal';z='熱忱';e='Zeal'},@{i='Damnation';z='天譴';e='Damnation'},@{i='SacredGround';z='聖地';e='Sacred Ground'},@{i='GuardianSpirit';z='守護靈';e='Guardian Spirit'},@{i='Exorcism';z='驅魔';e='Exorcism'},@{i='EndowHoly';z='賦予神聖';e='Endow Holy'},@{i='Smite';z='制裁';e='Smite'},@{i='Divinity';z='神性';e='Divinity'},@{i='Sacrament';z='聖禮';e='Sacrament'},@{i='Fanaticism';z='狂熱';e='Fanaticism'},@{i='HolyWrath';z='神聖之怒';e='Holy Wrath'},@{i='Dispell';z='赦罪';e='Absolution'})}
+  @{zh='忍者';en='Shinobi';base=$false;sk=@(@{i='FlameOrb';z='火焰球';e='Flame Orb'},@{i='FrostBlade';z='螺旋束縛';e='Binding Spiral'},@{i='LightningStrike';z='瞬步';e='Flash Step'},@{i='FireRelease';z='火遁';e='Fire Release'},@{i='IceRelease';z='冰遁';e='Ice Release'},@{i='LightningRelease';z='雷遁';e='Lightning Release'},@{i='FlowState';z='心流狀態';e='Flow State'},@{i='NinjutsuMastery';z='忍術精通';e='Ninjutsu Mastery'},@{i='ShadowSeal';z='暗影印記';e='Shadow Seal'},@{i='ShadowMastery';z='暗影精通';e='Shadow Mastery'},@{i='SilentEdge';z='無聲之刃';e='Silent Edge'},@{i='FanOfKnives';z='刀扇';e='Fan Of Knives'},@{i='ShadowFeint';z='迷蹤佯攻';e='Elusive Feint'},@{i='TwistOfFate';z='命運扭轉';e='Twist Of Fate'},@{i='ShurikenFan';z='萬旋手裏劍';e='Shuriken Fan'},@{i='MimicSeal';z='擬態印記';e='Mimic Seal'},@{i='ShadowRelease';z='黑刃';e='Black Blade'})}
+  @{zh='織者';en='Weaver';base=$false;sk=@(@{i='Heal';z='治療術';e='Heal'},@{i='Icebolt';z='冰箭術';e='Icebolt'},@{i='Firebolt';z='火箭術';e='Firebolt'},@{i='WeaverMastery';z='織者精通';e='Weaver Mastery'},@{i='SpearThrust';z='穿刺連擊';e='Piercing Flurry'},@{i='StrafingVolley';z='掃射齊發';e='Strafing Volley'},@{i='VenomStrike';z='毒液打擊';e='Venom Strike'},@{i='Haste';z='加速';e='Haste'},@{i='IceShard';z='冰晶';e='Ice Shard'},@{i='Fireball';z='火球術';e='Fireball'},@{i='Bash';z='猛擊';e='Bash'},@{i='SpearStab';z='穿刺';e='Impale'},@{i='ArrowShower';z='箭雨';e='Arrow Shower'},@{i='VenomCoating';z='毒液塗層';e='Venom Coating'},@{i='Cure';z='治癒術';e='Cure'},@{i='Earthbolt';z='石箭術';e='Earthbolt'},@{i='Thunderbolt';z='落雷';e='Thunderbolt'},@{i='Endure';z='堅忍';e='Endure'},@{i='SpearSlice';z='空氣斬';e='Air Cutter'},@{i='BladeDance';z='劍舞';e='Blade Dance'},@{i='ShadowStep';z='暗影步';e='Shadow Step'},@{i='HolyLight';z='聖光';e='Holy Light'},@{i='EarthSpikes';z='大地尖刺';e='Earth Spikes'},@{i='ThunderStorm';z='雷暴';e='Thunder Storm'},@{i='Fortify';z='強化壁壘';e='Fortify'},@{i='Stomp';z='踐踏';e='Stomp'},@{i='Marked';z='標記目標';e='Mark Target'},@{i='Cloaking';z='隱形';e='Cloaking'},@{i='SoulStrike';z='靈魂打擊';e='Soul Strike'},@{i='FieldSilence';z='壓制領域';e='Suppression Field'},@{i='FieldCurse';z='放逐領域';e='Banishment Field'},@{i='ResistanceMastery';z='自然抗性';e='Natural Resistance'},@{i='AxeVortex';z='漩渦斬';e='Vortex Slash'},@{i='SteadyHands';z='穩定之手';e='Steady Hands'},@{i='LightningReflexes';z='閃電反射';e='Lightning Reflexes'},@{i='Blessing';z='祝禱';e='Benediction'},@{i='FieldHealing';z='共鳴之井';e='Resonance Well'},@{i='FieldDamage';z='失諧之井';e='Dissonance Well'},@{i='Grace';z='神聖恩典';e='Divine Grace'},@{i='Whirlwind';z='旋風斬';e='Whirlwind'},@{i='Agility';z='專注';e='Inner Focus'},@{i='DualWieldMastery';z='雙持精通';e='Dual Wield Mastery'})}
+  @{zh='巫師';en='Wizard';base=$false;sk=@(@{i='FirePillar';z='火柱';e='Fire Pillar'},@{i='FireBarrier';z='火焰化身';e='Avatar of Fire'},@{i='ChainLightning';z='連鎖閃電';e='Chain Lightning'},@{i='Meteor';z='隕石';e='Meteor'},@{i='Tempest';z='怒雷風暴';e='Tempest'},@{i='EarthBarrier';z='岩石化身';e='Avatar of Stone'},@{i='TetraVortex';z='元素爆發';e='Elemental Overload'},@{i='WindBarrier';z='風暴化身';e='Avatar of Storm'},@{i='Earthquake';z='地震術';e='Earthquake'},@{i='FreezingField';z='暴風雪';e='Blizzard'},@{i='EarthWall';z='土牆';e='Earth Wall'},@{i='WaterBarrier';z='寒霜化身';e='Avatar of Frost'},@{i='HydroVortex';z='水龍捲';e='Hydro Vortex'},@{i='ArcaneSigil';z='奧術符印';e='Arcane Sigil'})}
+)
 # ══ 王技資料(來源:靈谷資料庫 spiritvale-zhtw.pages.dev,32 隻王 / 114 技能)══
 # 用途:①「從王的清單挑」對話框 ② 規則列顯示「這是誰的招」
 $script:BOSS_DB = @(
@@ -3396,7 +3412,7 @@ $BtnBaSounds.Add_Click({
     $sd = SoundDir
     if (-not $sd) { Show-Msg "找不到遊戲" "先按上方的「瀏覽」指定遊戲資料夾。" "warn"; return }
     if (-not (Test-Path -LiteralPath $sd)) { New-Item -ItemType Directory -Path $sd -Force | Out-Null }
-    Start-Process explorer.exe $sd
+    Start-Process explorer.exe (Q $sd)   # 不包引號的話,使用者名稱有空格就會被拆成好幾個參數
 })
 # 從 log 撈 [bossdiag] 印出來的王技 id
 # 全部清空(源需求 2026-08-25:規則多的時候一條一條刪太累)。破壞性動作 → 先問一次。
@@ -3441,7 +3457,7 @@ $BtnBaImport.Add_Click({
     Refresh-BaList; Mark-Dirty $BtnBaImport
     Show-Msg "匯入完成" ("log 裡找到 " + $found.Count + " 個王技,新增了 " + $add + " 條(其餘已經在清單裡)。`n`n接下來替每一條挑提示音,再按「套用設定」。") "info"
 })
-
+
 function Load-Fonts {
     $CboFont.Items.Clear()
     [void]$CboFont.Items.Add($DEFAULT_FONT)
@@ -4035,7 +4051,7 @@ $BSndFolder.Add_Click({
     $sd = SoundDir
     if (-not $sd) { Show-Msg "尚未安裝" "要先安裝翻譯才有這個資料夾。" "warn"; return }
     if (-not (Test-Path -LiteralPath $sd)) { try { New-Item -ItemType Directory -Path $sd -ErrorAction Stop | Out-Null } catch { Show-Msg "失敗" $_.Exception.Message "error"; return } }
-    Start-Process explorer.exe $sd
+    Start-Process explorer.exe (Q $sd)
 })
 $BAudPreset.Add_Click({
     # 隨包附的三個提示音(純合成、無版權疑慮),複製進遊戲資料夾並套好整組
@@ -4305,7 +4321,7 @@ $BMuFolder.Add_Click({
     $md = MusicDir
     if (-not $md) { Show-Msg "尚未安裝" "要先安裝翻譯才有這個資料夾。" "warn"; return }
     if (-not (Test-Path -LiteralPath $md)) { try { New-Item -ItemType Directory -Path $md -ErrorAction Stop | Out-Null } catch { Show-Msg "失敗" $_.Exception.Message "error"; return } }
-    Start-Process explorer.exe $md
+    Start-Process explorer.exe (Q $md)
 })
 $BMuSet.Add_Click({
     if ($CboMuMap.SelectedIndex -lt 0 -or $CboMuMap.SelectedIndex -ge $script:mapList.Count) { Show-Msg "還沒選地圖" "先在「地圖」下拉選一張圖。" "warn"; return }
@@ -5666,7 +5682,7 @@ function Show-PriceWindow {
     $w.FindName("POpenDir").Add_Click({
         $pp = Get-PricePath
         if (Test-Path $pp) { Start-Process explorer.exe "/select,`"$pp`"" }
-        else { Start-Process explorer.exe (Split-Path $pp) }
+        else { Start-Process explorer.exe (Q (Split-Path $pp)) }
     })
     $lst.Add_SelectionChanged({
         $sel = $lst.SelectedItem
@@ -5880,7 +5896,19 @@ function Health-Tick {
 $BtnHealth.Add_Click({ Run-HealthCheck })
 
 # ── 動作 ─────────────────────────────────────────────────────────────────────
-function Q([string]$s) { '"' + $s + '"' }
+# ★ Windows 的命令列引號規則【不是】「包起來就好」:
+#   反斜線只有在【緊接著引號】的時候才需要加倍。路徑結尾是反斜線時(例如 D:\Games\SpiritVale\),
+#   那個反斜線會緊接著我們補上的收尾引號 → 變成跳脫引號 → 收尾引號被吃掉,後面的參數整組被吞進去。
+#   實測:install.ps1 -GamePath "D:\Games\SpiritVale\" -Mode 1 -Font x
+#     → 子行程收到的 GamePath 變成【D:\Games\SpiritVale" -Mode 1 -Font x】,而 install.ps1 沒有
+#       PositionalBinding=$false,所以是【靜默】綁錯,一個錯誤訊息都不會有。
+#   C:\Program Files (x86)\... 這種一般含空白的路徑舊寫法是對的 —— 所以平常看不出問題。
+function Q([string]$s) {
+    if ($null -eq $s) { $s = "" }
+    $s = [regex]::Replace($s, '(\\*)"', '$1$1\"')   # 引號前的反斜線加倍,引號本身跳脫
+    $s = [regex]::Replace($s, '(\\+)$', '$1$1')     # 結尾的反斜線加倍(它們緊接著收尾引號)
+    return '"' + $s + '"'
+}
 function Current-ModeArg {
     if ($RbM1.IsChecked) { return "1" }
     if ($RbM3.IsChecked) { return "3" }
@@ -6212,6 +6240,29 @@ function Child-Tick {
 
 $BtnInstall.Add_Click({
     if (-not $script:GamePath) { Show-Msg "找不到遊戲" "先按「瀏覽」指定遊戲資料夾。" "warn"; return }
+    # ★★ CRITICAL 防呆(2026-08-28 深度審查):擋住「用純翻譯包覆蓋掉公會專用版」。
+    #    舊版完全沒有 edition 檢查 —— 一個已裝公會版的【付費客戶】只要從公開下載的
+    #    「一鍵安裝包」開這支工具,畫面會叫他「按安裝升級」,一按 payload 的 pure DLL 就蓋上去:
+    #    GuildGateHashes 變空 → 所有付費功能靜默關閉、序號分頁消失,而標題列只寫「版本一致」。
+    #    這是會直接毀掉付費客戶的操作,必須先問清楚,而且預設不要繼續。
+    try {
+        $gameEdNow = Get-DllEdition (Join-Path (PluginDir) "SpiritZh.dll")
+        if ($gameEdNow -eq "guild" -and $ToolEdition -ne "guild") {
+            $ans = [System.Windows.MessageBox]::Show(
+                "你的遊戲現在裝的是【公會專用版】,而這個安裝包是【純翻譯包】。`r`n`r`n" +
+                "繼續安裝會把公會專用版【覆蓋掉】,結果是:`r`n" +
+                "  ‧所有付費功能(詞條品質 / 傷害統計 / 掉落音效 / 掉落光柱…)全部關閉`r`n" +
+                "  ‧設定工具的「序號」分頁會消失`r`n" +
+                "  ‧序號在純翻譯包上完全無效`r`n`r`n" +
+                "如果你有買序號或公會授權,請【不要】繼續 —— 改用「公會專用版」的安裝包。`r`n`r`n" +
+                "真的還是要覆蓋成純翻譯包嗎?",
+                "⚠ 這會把公會專用版覆蓋掉", "YesNo", "Warning")
+            if ($ans -ne "Yes") {
+                $LblStatus.Text = "狀態:已取消 —— 請改用「公會專用版」的安裝包"
+                return
+            }
+        }
+    } catch { }
     # 安裝前把四個分頁的修改都先寫進去(不然安裝完重讀時,DPS/詞條品質/光柱三頁沒套用的修改會被靜默丟掉;
     # 首次安裝時 plugins 資料夾還不存在,三個 Save-* 會自己跳過)
     $script:saveErr = @()
@@ -6231,7 +6282,8 @@ $BtnDiag.Add_Click({
 })
 $BtnUninstall.Add_Click({
     $r = [System.Windows.MessageBox]::Show(
-        "確定要移除翻譯嗎?`n`n會把 BepInEx 整個拿掉," + $(if ($script:IsPure) { "你的自訂翻譯/保留原文清單/字型設定" } else { "你的音效/光柱/畫面設定" }) + "會自動備份到遊戲資料夾的「SpiritZh_設定備份」。",
+        "確定要移除翻譯嗎?`n`n會把 BepInEx 整個拿掉," + $(if ($script:IsPure) { "你的自訂翻譯/保留原文清單/字型設定" } else { "你的音效/光柱/畫面設定" }) + "會自動備份到遊戲資料夾的「SpiritZh_設定備份」。" +
+        $(if (-not $script:IsPure) { "`n`n★ 你的【序號與啟用憑證】也會一起備份到那裡。`n   重裝後把 SpiritZh_serial.txt / SpiritZh_activation.txt 複製回 BepInEx\plugins\ 就會恢復,`n   不用重新跟作者要序號。" } else { "" }),
         "移除翻譯", "YesNo", "Warning")
     if ($r -ne "Yes") { return }
     Start-Child "uninstall.ps1" @("-GamePath", (Q $script:GamePath)) `
@@ -6795,6 +6847,64 @@ function Upd-VerifySig([byte[]]$data, [string]$sigB64) {
 }
 
 # 背景工作:$mode = "check"(抓 version.json)或 "download"(抓 ZIP)
+# ── 下載進度視窗(源要求:大檔下載要有進度條,不然像當機)──
+# 非模態、置頂;進度靠下載 job 的 $sh.pct 推。Content-Length 拿不到時切跑馬燈。
+$script:updProg = $null; $script:updProgBar = $null; $script:updProgLbl = $null
+function Upd-ProgShow([double]$sizeMB) {
+    try {
+        $px = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True"
+        WindowStartupLocation="CenterOwner" SizeToContent="Height" Width="470"
+        Background="#151C2B" FontFamily="Microsoft JhengHei UI" Foreground="#E6EBF2">
+  <Border BorderBrush="#1D5F8A" BorderThickness="1" Padding="24,20">
+    <StackPanel>
+      <TextBlock Text="正在下載更新…" FontSize="16" FontWeight="SemiBold" Foreground="#22C9F0" Margin="0,0,0,4"/>
+      <TextBlock x:Name="PS" Text="" FontSize="12" Foreground="#7C93AD" Margin="0,0,0,14"/>
+      <ProgressBar x:Name="PB" Height="20" Minimum="0" Maximum="100" Value="0"
+                   Foreground="#22C9F0" Background="#0A1626" BorderBrush="#14526E" BorderThickness="1"/>
+      <TextBlock x:Name="PL" Text="連線中…" FontSize="13" Foreground="#E6EBF2" Margin="0,10,0,0"/>
+      <TextBlock Text="下載完會自動驗證數位簽章與 SHA256,請稍候。" FontSize="12" Foreground="#7C93AD" Margin="0,4,0,16" TextWrapping="Wrap"/>
+      <Button x:Name="BC" Content="取消下載" Width="110" Height="30" HorizontalAlignment="Right"/>
+    </StackPanel>
+  </Border>
+</Window>
+'@
+        $script:updProg = [Windows.Markup.XamlReader]::Parse($px)
+        try { $script:updProg.Owner = $window } catch {}
+        $script:updProgBar = $script:updProg.FindName("PB")
+        $script:updProgLbl = $script:updProg.FindName("PL")
+        $script:updProg.FindName("PS").Text = "共 " + [math]::Round($sizeMB, 1) + " MB"
+        $script:updProg.FindName("BC").Add_Click({
+            try { if ($script:updShared) { $script:updShared.cancel = $true } } catch {}
+            try { $script:updProgLbl.Text = "取消中…" } catch {}
+        })
+        # 沒有標題列,但 Alt+F4 仍可能關 —— 當成取消,並允許關閉
+        $script:updProg.Add_Closing({ try { if ($script:updShared) { $script:updShared.cancel = $true } } catch {} })
+        $script:updProgBar.IsIndeterminate = $true    # 還沒收到進度前先跑馬燈
+        $script:updProg.Show()
+    } catch {}
+}
+function Upd-ProgSet([int]$pct) {
+    try {
+        if (-not $script:updProg) { return }
+        if ($pct -le 0) {
+            if (-not $script:updProgBar.IsIndeterminate) { $script:updProgBar.IsIndeterminate = $true }
+            $script:updProgLbl.Text = "連線中…"
+        } else {
+            if ($pct -gt 100) { $pct = 100 }
+            if ($script:updProgBar.IsIndeterminate) { $script:updProgBar.IsIndeterminate = $false }
+            $script:updProgBar.Value = $pct
+            $script:updProgLbl.Text = "$pct%"
+        }
+    } catch {}
+}
+function Upd-ProgHide {
+    try { if ($script:updProg) { $script:updProg.Close() } } catch {}
+    $script:updProg = $null; $script:updProgBar = $null; $script:updProgLbl = $null
+}
+
 function Upd-StartJob([string]$mode, [hashtable]$arg) {
     if ($script:updBusy) { return $false }
     $script:updBusy = $true
@@ -6861,10 +6971,11 @@ function Upd-Cleanup {
 function Upd-Poll {
     $sh = $script:updShared
     if (-not $sh) { try { $script:updTimer.Stop() } catch {}; return }
-    if ($sh.mode -eq "download" -and -not $sh.done) { Upd-Say ("下載中… " + $sh.pct + "%"); return }
+    if ($sh.mode -eq "download" -and -not $sh.done) { Upd-Say ("下載中… " + $sh.pct + "%"); Upd-ProgSet $sh.pct; return }
     if (-not $sh.done) { return }
     $mode = $sh.mode; $ok = $sh.ok; $err = $sh.err
     Upd-Cleanup
+    if ($mode -eq "download") { Upd-ProgHide }
     if ($mode -eq "check") { Upd-OnChecked $ok $err $sh } else { Upd-OnDownloaded $ok $err $sh }
 }
 
@@ -6880,6 +6991,58 @@ function Upd-ChangeText {
         if ($c.Count -gt $n) { $s += ("  ‧…另外還有 " + ($c.Count - $n) + " 項`n") }
         return $s
     } catch { return "" }
+}
+
+# ── 公會白名單落檔(v3.76.6)──
+#   version.json 裡的 guilds 是【外掛自己會驗簽】的一段字串,設定工具只負責【原封不動搬運】,
+#   不解析、不判斷、不加工 —— 因為 shell.ps1 是 509 KB 明文,記事本就能改,外掛不能信它。
+#   ★ 一定要在【版本比較之前】呼叫:加公會的時候版本號不會變,放在後面的話,
+#     已經是最新版的人會在「已經是最新版」那個 return 就跳出,永遠拿不到新清單。
+#   ★ guilds 是空的或沒有這個欄位 → 什麼都不做(不刪舊檔)。舊版 version.json 沒有這欄,
+#     刪檔會把已付費公會誤殺;要收回公會靠的是清單裡各自的到期日,不是刪檔。
+# ── 把「有新版」告訴外掛(遊戲中會跳公告)──
+#   ★ 外掛【不連網】(硬性原則:不對遊戲伺服器多發任何一次請求)。
+#     設定工具本來就會查 GitHub,查到就落一個小檔,外掛只負責讀。
+#   ★ 已經是最新版 → 刪掉這個檔,不然更新完進遊戲還會再喊一次。
+function Upd-DropNewVer([string]$newVer, [bool]$hasNew) {
+    try {
+        $d = PluginDir
+        if (-not $d -or -not (Test-Path -LiteralPath $d)) { return }
+        $f = Join-Path $d "SpiritZh_newver.txt"
+        if (-not $hasNew) {
+            if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
+            return
+        }
+        if ([string]::IsNullOrWhiteSpace($newVer)) { return }
+        $newVer = $newVer.Trim()
+        # 沒變就不寫(外掛看 mtime,不必要的寫入會讓它重讀)
+        if (Test-Path -LiteralPath $f) {
+            $cur = ""
+            try { $cur = (Get-Content -LiteralPath $f -Raw -Encoding UTF8).Trim() } catch { }
+            if ($cur -eq $newVer) { return }
+        }
+        [IO.File]::WriteAllText($f, $newVer, (New-Object Text.UTF8Encoding($false)))
+    } catch { }
+}
+
+function Upd-DropGuilds {
+    try {
+        $g = $null
+        try { $g = [string]$script:updInfo.guilds } catch { }
+        if ([string]::IsNullOrWhiteSpace($g)) { return }
+        $d = PluginDir
+        if (-not $d -or -not (Test-Path -LiteralPath $d)) { return }
+        $f = Join-Path $d "SpiritZh_guilds.dat"
+        $g = $g.Trim()
+        # 沒變就不寫,免得每次檢查更新都動一次磁碟(外掛是看 mtime 決定要不要重讀)
+        if (Test-Path -LiteralPath $f) {
+            $cur = ""
+            try { $cur = (Get-Content -LiteralPath $f -Raw -Encoding UTF8).Trim() } catch { }
+            if ($cur -eq $g) { return }
+        }
+        [IO.File]::WriteAllText($f, $g, (New-Object Text.UTF8Encoding($false)))
+        Upd-Say "公會白名單已更新。"
+    } catch { }
 }
 
 function Upd-OnChecked([bool]$ok, [string]$err, $sh) {
@@ -6898,15 +7061,18 @@ function Upd-OnChecked([bool]$ok, [string]$err, $sh) {
     }
     try { $script:updInfo = ([System.Text.Encoding]::UTF8.GetString($sh.json) | ConvertFrom-Json) } catch { $script:updInfo = $null }
     if (-not $script:updInfo) { Upd-Say "更新資訊格式看不懂 —— 已忽略。"; $script:updManual = $false; return }
+    Upd-DropGuilds
     $newVer = [string]$script:updInfo.version
     $cur = ($ToolVer -replace "^v", "")
     if (-not (Upd-VerGt $newVer $cur)) {
+        Upd-DropNewVer "" $false   # 已是最新 → 清掉遊戲內提示檔
         Upd-Say ("已經是最新版(" + $cur + ")。")
         if ($script:updManual) { Show-Msg "已是最新版" ("你目前的版本 v" + $cur + " 已經是最新的了。") "info" }
         $script:updManual = $false
         return
     }
     $script:updManual = $false
+    Upd-DropNewVer $newVer $true   # 讓外掛在遊戲中也能提示「已有新的版本補丁」
     Upd-Say ("發現新版 v" + $newVer + "(你目前是 v" + $cur + ")")
     if ($script:updMode -eq "auto") { Upd-Download; return }
     $ans = [System.Windows.MessageBox]::Show(
@@ -6926,11 +7092,13 @@ function Upd-Download {
     if (-not $pkg) { Upd-Say "更新資訊裡找不到對應的安裝包。"; return }
     $dest = Join-Path ([System.IO.Path]::GetTempPath()) ([string]$pkg.file)
     Upd-Say ("下載中… 0%  (" + [math]::Round(([double]$pkg.size) / 1MB, 1) + " MB)")
+    Upd-ProgShow ([double]$pkg.size / 1MB)
     [void](Upd-StartJob "download" @{ url = [string]$pkg.url; dest = $dest; sha = ([string]$pkg.sha256).ToUpperInvariant(); cancel = $false })
 }
 
 function Upd-OnDownloaded([bool]$ok, [string]$err, $sh) {
     if (-not $ok) {
+        if ($err -eq "已取消") { Upd-Say "已取消下載。"; return }
         Upd-Say ("下載失敗:" + $err)
         Show-Msg "下載失敗" ($err + "`n`n可以稍後再試,或到 GitHub 的 Releases 頁手動下載。") "warn"
         return
@@ -6949,6 +7117,43 @@ function Upd-OnDownloaded([bool]$ok, [string]$err, $sh) {
     Upd-Install
 }
 
+# ── 把新版安裝包同步回【使用者原本的安裝包資料夾】──
+#   為什麼需要:install.ps1 只更新遊戲資料夾。不同步的話,設定工具自己永遠是舊版,
+#   每次啟動都會再跳一次更新(網友實測:無限鬼打牆)。
+#   ★ 不能當場覆蓋:設定工具正在執行,shell.ps1 與 payload 的 DLL 可能被鎖住 ——
+#     交給一個【獨立行程】,先等 8 秒(讓使用者關掉設定工具),再複製。
+#   ★ 只覆蓋同名檔、不刪任何東西:使用者自己放的音樂/游標圖不會被清掉。
+#   ★ 來源要「看起來真的是安裝包」(有 payload 且有 安裝.bat)才做,避免亂複製。
+function Upd-SelfUpdate([string]$srcRoot) {
+    try {
+        if (-not $srcRoot -or -not (Test-Path -LiteralPath $srcRoot)) { return }
+        # 來源必須是完整安裝包
+        if (-not (Test-Path -LiteralPath (Join-Path $srcRoot "payload"))) { return }
+        $dst = $Here
+        if (-not $dst -or -not (Test-Path -LiteralPath $dst)) { return }
+        # 目的地也必須是安裝包(有 payload)—— 不然不知道在複製到哪
+        if (-not (Test-Path -LiteralPath (Join-Path $dst "payload"))) { return }
+        # ★★ 目的地【絕不能】在 %TEMP% 底下(2026-08-27 鬼打牆根因):
+        #   那是自動更新的暫存解壓夾,Windows 隨時會清掉 —— 更新到那裡等於沒更新,
+        #   使用者開的還是原本那個舊資料夾,於是每次都再跳一次更新。
+        try {
+            $tmpRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+            if ([IO.Path]::GetFullPath($dst).TrimEnd('\').StartsWith($tmpRoot, [StringComparison]::OrdinalIgnoreCase)) { return }
+        } catch { }
+        # 同一個資料夾就不用做(從安裝包自己跑安裝的情況)
+        try { if ([IO.Path]::GetFullPath($srcRoot).TrimEnd('\') -ieq [IO.Path]::GetFullPath($dst).TrimEnd('\')) { return } } catch { }
+
+        $q1 = $srcRoot -replace "'", "''"
+        $q2 = $dst -replace "'", "''"
+        # 等設定工具關掉再複製;就算沒關,8 秒後多半也複製得動(只有正在讀的檔會失敗,下次更新會補上)
+        $inner = "Start-Sleep -Seconds 8; " +
+                 "try { Get-ChildItem -LiteralPath '$q1' -Force | ForEach-Object { " +
+                 "Copy-Item -LiteralPath `$_.FullName -Destination '$q2' -Recurse -Force -ErrorAction SilentlyContinue } } catch {}"
+        Start-Process powershell -WindowStyle Hidden `
+            -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $inner) -ErrorAction Stop
+    } catch { }
+}
+
 function Upd-Install {
     try {
         $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("SpiritZh_update_" + (Get-Date -Format "yyyyMMddHHmmss"))
@@ -6965,16 +7170,58 @@ function Upd-Install {
             return
         }
         $target = $bat[0].FullName
+        # ★★ 自我更新安裝包資料夾(網友回報「更新後每次開都還是跳更新,無限鬼打牆」)
+        #  背景:install.ps1 只把檔案複製到【遊戲】資料夾,使用者手上這個安裝包資料夾不會被動到。
+        #  而 $ToolVer 讀的是 $Here\payload\...\SpiritZh.dll(本檔開頭)—— 永遠停在舊版本,
+        #  所以每次開設定工具都比對到「有新版」,但遊戲裡其實早就更新好了。
+        #  標題列「v3.76.5(遊戲內: v3.76.6 ⚠未更新)」就是這個狀態。
+        Upd-SelfUpdate (Split-Path -Parent $target)
         Upd-Say "已交給安裝程式,請照它的畫面操作。"
         if ($target.ToLowerInvariant().EndsWith(".bat")) { Start-Process -FilePath $target -WorkingDirectory (Split-Path -Parent $target) }
-        else { Start-Process powershell -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $target) -WorkingDirectory (Split-Path -Parent $target) }
+        # ★ $target 要包引號:Start-Process 會把 -ArgumentList 陣列用空白接成一整串而且【不補引號】,
+        #   而這個路徑在 %TEMP% 底下 —— 使用者名稱只要有空格(C:\Users\John Smith\...)就會被拆開,
+        #   powershell 收到一個不存在的 -File 路徑,安裝【靜默不執行】,而下面還是照跳「安裝程式已啟動」。
+        else { Start-Process powershell -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Q $target)) -WorkingDirectory (Split-Path -Parent $target) }
         Show-Msg "安裝程式已啟動" "安裝視窗會另外開啟,請照它的指示完成。`n`n安裝完成後請關閉這個設定工具再重新開啟,才會讀到新版本。" "info"
     }
     catch { Upd-Say ("解壓縮或啟動安裝程式失敗:" + $_.Exception.Message); Show-Msg "安裝失敗" $_.Exception.Message "error" }
 }
 
+# 只取【公會白名單】,不做任何版本更新提示 —— 給「更新檢查:完全不檢查」的使用者用。
+#   公會授權跟版本更新是兩件事:使用者可以不想升級,但不能因此拿不到自己買的授權。
+#   ★ 一樣走驗簽:沒驗過的位元組一個字都不信(跟 Upd-OnChecked 同一套 Upd-VerifySig)。
+#   ★ 失敗完全靜默:這只是補一條授權通道,不該打擾不想更新的人。
+function Upd-GuildsOnly {
+    if ($script:IsTempCopy) { return }
+    try {
+        $base = "https://raw.githubusercontent.com/$($script:UPD_OWNER)/$($script:UPD_REPO)/$($script:UPD_BRANCH)"
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $wc = New-Object System.Net.WebClient
+        $wc.Encoding = [System.Text.Encoding]::UTF8
+        $wc.Headers.Add("User-Agent", "SpiritZh-Updater")
+        $j = $wc.DownloadData("$base/version.json")
+        $s = $wc.DownloadString("$base/version.json.sig")
+        $wc.Dispose()
+        if (-not (Upd-VerifySig $j $s)) { return }   # 驗不過就當作沒拿到
+        $script:updInfo = ([System.Text.Encoding]::UTF8.GetString($j) | ConvertFrom-Json)
+        Upd-DropGuilds
+        Upd-Say "已更新公會授權清單(更新檢查為關閉,不會提示新版)。"
+    } catch { }
+}
+
 function Upd-Check([bool]$manual) {
     if ($script:updBusy) { if ($manual) { Show-Msg "正在忙" "上一個更新工作還沒結束,請稍候。" "info" }; return }
+    # ★ 暫存副本不查更新:它的版本永遠是「解壓當下那一版」,查了必定說有新版 → 無限鬼打牆。
+    if ($script:IsTempCopy) {
+        Upd-Say "這是更新用的暫存副本,不檢查更新 —— 請從你原本的安裝包資料夾開啟設定工具。"
+        if ($manual) {
+            Show-Msg "這是暫存副本" ("你現在開的是【自動更新解壓出來的暫存副本】:`n" + $Here + "`n`n" +
+                "這個資料夾隨時會被系統清掉,而且它的版本永遠停在解壓當下那一版,`n" +
+                "所以每次開都會說有新版 —— 這就是「一直跳更新」的原因。`n`n" +
+                "請改從你【原本的安裝包資料夾】開啟設定工具。") "warn"
+        }
+        return
+    }
     $script:updManual = $manual
     $base = "https://raw.githubusercontent.com/$($script:UPD_OWNER)/$($script:UPD_REPO)/$($script:UPD_BRANCH)"
     Upd-Say "檢查中…"
@@ -6992,7 +7239,11 @@ $script:updBootTimer = New-Object System.Windows.Threading.DispatcherTimer
 $script:updBootTimer.Interval = [TimeSpan]::FromSeconds(2)
 $script:updBootTimer.Add_Tick({
     $script:updBootTimer.Stop()
-    if ($script:updMode -ne "off") { Upd-Check $false }
+    # ★★ v3.76.11 深度審查 H23:公會白名單是【授權資料】,不該跟「要不要升級版本」綁在一起。
+    #   舊版 Upd-DropGuilds 只在 Upd-OnChecked 裡被呼叫,而更新模式選「完全不檢查」時
+    #   根本不會走到那裡 —— 結果是買了公會方案的人【永遠開不了功能】,而且查不出原因。
+    #   所以:off 模式仍然去取一次清單(只驗簽落檔,不提示更新、不下載任何東西)。
+    if ($script:updMode -ne "off") { Upd-Check $false } else { Upd-GuildsOnly }
 })
 $script:updBootTimer.Start()
 
